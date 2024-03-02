@@ -1,0 +1,286 @@
+---
+title: "m8"
+author: "Will Tirone"
+format: pdf
+---
+
+
+```{r include=FALSE}
+library(tidyverse)
+library(lme4)
+library(kableExtra)
+options(dplyr.summarise.inform = FALSE)
+```
+
+# Load Data
+
+```{r}
+
+# some cleaning steps to get the data in shape to work with 
+
+school_dat = read.csv('school.csv') |> 
+  pivot_longer(
+    cols = -c(school, num_classes),
+    names_to = "class",
+    values_to = "mean_score"
+  ) |> 
+  filter(!is.na(mean_score)) |> 
+  mutate(class = str_replace(class, "_[1234]$", ""))
+
+```
+
+
+# 1) 
+
+## a) 
+
+The outcome of interest is a given class' mean test score on a math exam, noting
+that they're standardized and scaled here. The study (as presented in the reading)
+focuses on teacher-level analysis in relation to math scores. Say we want to 
+know whether or not the class size has an effect on the math scores. In school 1,
+regular class 1, we observed a score of -0.197. We want to know if this teacher 
+would have the same outcome with a smaller class, which is impossible to observe 
+since the teacher can only be assigned to one class. The Fisher sharp null states 
+that the teacher would have the same outcome in a smaller class (across all schools 
+and classes). Then, we randomly permute the treatments and outcomes, calculate our 
+statistic, and approximate a p-value.
+
+## b) 
+
+Here, we calculate:
+
+
+$$
+T^{dif, \lambda_{RSS}} = \sum_{i=1}^{16} \frac{\text{num classes in school i }}{\text{total classes}}(\bar{y}^{obs}_{small}(i) - \bar{y}^{obs}_{reg.}(i)) = 0.228, \ \ \ \ \ \text{for school i = 1,...,16}
+$$
+
+And note that since the question asks for a one-tailed test, I drop the 
+absolute value bars and just use the raw statistic. 
+
+```{r}
+
+total_classes = 68 
+
+# computes y_bar_treatment - y_bar_control 
+# so y_bar for small class - y_bar for regular class 
+y_bars = school_dat |> 
+    group_by(school, class) |> 
+    summarise(y_bar = mean(mean_score)) |> 
+    group_by(school) |> 
+    summarise(diff_y_bar = diff(y_bar))
+
+# get number of classes 
+c = school_dat |> 
+    dplyr::select(school, num_classes) |> 
+    unique()
+  
+# combine and do calculations 
+left_join(y_bars, c, by = c("school")) |> 
+  mutate(T_stat_i = (num_classes/total_classes)*diff_y_bar) |> 
+  group_by() |> 
+  summarise(T_stat = sum(T_stat_i)) |> 
+  pull() 
+```
+
+## c) 
+
+The classes were previously assigned regular, regular, small, small. Below 
+using `sample()` and a vector with the assignments, we permute them randomly 
+and get small, regular, regular, small. We will substitute these values in to 
+the existing data frame and compute the statistic again. Then reusing code from 
+part b), we have an updated statistic of: 
+
+$$
+T^{dif, \lambda_{RSS}} = 0.263
+$$
+
+```{r}
+# randomly sample 
+set.seed(154)
+class = c("reg_class", "reg_class", "small_class", "small_class")
+new_assign = sample(class)
+
+altered = school_dat |> 
+    filter(school == 16) |> 
+    mutate(class = new_assign)
+
+school_new_assign = bind_rows(
+  school_dat |> filter(school != 16), 
+  altered 
+)
+
+# copying code we used previously to compute 
+
+# computes y_bar_treatment - y_bar_control 
+# so y_bar for small class - y_bar for regular class 
+y_bars = school_new_assign |> 
+    group_by(school, class) |> 
+    summarise(y_bar = mean(mean_score)) |> 
+    group_by(school) |> 
+    summarise(diff_y_bar = diff(y_bar))
+
+# get number of classes 
+c = school_new_assign |> 
+    dplyr::select(school, num_classes) |> 
+    unique()
+  
+# combine and do calculations 
+left_join(y_bars, c, by = c("school")) |> 
+  mutate(T_stat_i = (num_classes/total_classes)*diff_y_bar) |> 
+  group_by() |> 
+  summarise(T_stat = sum(T_stat_i)) |> 
+  pull() 
+```
+
+## d) 
+
+Here, I'm using a similar approach to previous questions, but repeat the process
+5,000 times. Within each school, we randomize the small vs. regular, and compute and 
+store the $T^{diff, \lambda_{RSS}}$ for each iteration. Then, we check plot the 
+distribution and compute an empirical p-value of $\approx 0.006$ depending on the 
+random seed. Since this is well below 0.05, we can safely reject the Fisher sharp 
+null that the treatment (reg. vs. small classes) has no effect on mean math test
+scores.
+
+```{r}
+
+t_values = c() 
+S = 5000
+
+for (i in 1:S){
+  
+  subset = data.frame() 
+  
+  for (j in 1:16){ 
+    school_j = school_dat[school_dat$school == j, ]
+    school_j$class = sample(school_j$class)
+    subset = bind_rows(subset, school_j)
+  }
+
+  # copying code we used previously to compute 
+  
+  # computes y_bar_treatment - y_bar_control 
+  # so y_bar for small class - y_bar for regular class 
+  y_bars = subset |> 
+      group_by(school, class) |> 
+      summarise(y_bar = mean(mean_score)) |> 
+      group_by(school) |> 
+      summarise(diff_y_bar = diff(y_bar))
+  
+  # get number of classes 
+  c = subset |> 
+      dplyr::select(school, num_classes) |> 
+      unique()
+    
+  # combine and do calculations 
+  T_stat = left_join(y_bars, c, by = c("school")) |> 
+      mutate(T_stat_i = (num_classes/total_classes)*diff_y_bar) |> 
+      group_by() |> 
+      summarise(T_stat = sum(T_stat_i)) |> 
+      pull() 
+  
+  t_values = c(t_values, T_stat)
+}
+
+hist(t_values,
+     main='Randomization Distribution, S = 5000 reps')
+abline(v = 0.263, col = 'red', lwd=2)
+```
+
+And computing the p-value:
+
+```{r}
+mean(t_values >= 0.263)
+```
+
+# 2) 
+
+First, we'll do model selection by comparing the additive model with the 
+model with an interaction between school:class. The p-value for the F-test is 
+not significant, so we use the simpler model, `mean_score ~ class + school`, 
+where class is the treatment here (the values are `small_class` and `reg_class`). 
+
+```{r}
+m1 = lm(mean_score ~ class + as.factor(school), data = school_dat)
+m2 = lm(mean_score ~ class * as.factor(school), data = school_dat)
+anova(m1, m2)
+```
+
+
+Below I report the point estimates, standard errors, and 95% confidence intervals
+for our final model. In addition, R^2 and the regression variance are: 
+
+$$
+\begin{aligned}
+R^2 = 0.6292 \\
+\sigma^2 = 0.1638
+\end{aligned}
+$$
+
+```{r}
+coefs = cbind(Estimate = coef(m1), 
+              SE = sqrt(diag(vcov(m1))), 
+              suppressMessages(confint(m1)))
+
+coefs |> kable() 
+```
+
+## Checking model assumptions: 
+
+Since we only have a handful of points for each school, I think it makes sense 
+to look at all the data points together. First, it looks like there's no evidence 
+of heteroskedastiscity, the residuals don't have an obvious pattern over the 
+fitted values. Second, the residuals look normally distributed based on the QQ plot.
+We don't have any reason to believe that the linearity or independence assumptions are 
+broken either, so we'll conclude that the modeling assumptions aren't broken.
+
+```{r}
+plot(m1)
+```
+
+
+# 3) 
+
+## a)
+
+Our colleague is incorrect because they're not considering `Block == 0`, which 
+has a coefficient of 0. So this is significantly different than the values for 
+blocks 1 and 2. 
+
+## b)
+
+This is true. It seems like the treatment has no effect since a 95% conf. interval 
+would cover zero for both interaction terms.
+ 
+## c)
+
+Blocking is not done randomly, it is done intentionally based on background 
+characteristics that we want to balance. It is nonsensical to consider 
+being "randomly" assigned to a block, so we don't agree with our colleague.
+
+# 4) 
+
+## a) 
+
+Computed the coefficients here by plugging in values and computing.
+
+$$ 
+\begin{aligned}
+\beta_0 &= 1\\
+\beta_1 &= 4 \\ 
+\beta_2 &= 2 \\ 
+\beta_3 &= 0
+\end{aligned}
+$$
+
+## b) 
+
+Since the interaction coefficient is zero, we conclude there is no interaction among 
+A and B. Now, we can conclude that we do have enough information to estimate the 
+effects from part a) because the blocking + randomization covers every possible
+case. That is, we have participants in `A=0, B=0`, `A=1, B=0`, and `A=0, B=1`.
+We don't care about having a group with `A=1, B=1` because this interaction has no 
+effect. 
+
+
+

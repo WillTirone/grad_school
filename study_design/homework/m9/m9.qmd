@@ -1,0 +1,380 @@
+---
+title: "m9"
+author: "Will Tirone"
+format: pdf
+---
+
+```{r, include=FALSE}
+library(tidyverse)
+library(kableExtra)
+```
+
+# Q1) 
+
+## a) 
+
+Here just copying the script posted on Sakai for Methods 9. 
+
+```{r}
+
+#set up a true mean value for cases that get no treatments at all
+trt0 = 10
+
+#set up true values for the main effects for 4 treatments
+trta = 2
+trtb = -1
+trtc = 4
+trtd = 3
+
+#set up true values for the effects for two-way interactions 
+trtab = 4
+trtac = -1
+trtad = 2
+trtbc = 6
+trtbd = -3
+trtcd = 2
+
+#these are for use in Problem 3
+#trtbc = 0
+#trtbd = 0
+#trtcd = 0
+
+
+#we will set all three-way interactions and the four-way interaction
+trtabc = 0
+trtabd = 0
+trtacd = 0
+trtbcd = 0
+trtabcd = 0
+
+true_values = c(trt0, trta, trtb, trtc, trtd, trtab, trtac, trtad, 
+                trtbc, trtbd, trtcd)
+
+true_three = c(true_values, 0, 0, 0, 0)
+
+x0 = c(0, 0, 0, 0)
+xa = c(1, 0, 0, 0)
+xb = c(0, 1, 0, 0)
+xc = c(0, 0, 1, 0)
+xd = c(0, 0, 0, 1)
+xab = c(1, 1, 0, 0)
+xac = c(1, 0, 1, 0)
+xad = c(1, 0, 0, 1)
+xbc = c(0, 1, 1, 0)
+xbd = c(0, 1, 0, 1)
+xcd = c(0, 0, 1, 1)
+xabc = c(1, 1, 1, 0)
+xabd = c(1, 1, 0, 1)
+xacd = c(1, 0, 1, 1)
+xbcd = c(0, 1, 1, 1)
+xabcd = c(1, 1, 1, 1)
+
+## with this information, you can make the datasets needed
+#to answer the questions about the full factorial design
+
+n = 4
+sigma = 0.2
+y0 = rnorm(n, trt0, sigma)
+ya = rnorm(n, trt0 + trta, sigma)
+yb = rnorm(n, trt0 + trtb, sigma)
+yc = rnorm(n, trt0 + trtc, sigma)
+yd = rnorm(n, trt0 + trtd, sigma)
+yab = rnorm(n, trt0 + trta + trtb + trtab, sigma)
+yac = rnorm(n, trt0 + trta + trtc + trtac, sigma)
+yad = rnorm(n, trt0 + trta + trtd + trtad, sigma)
+ybc = rnorm(n, trt0 + trtb + trtc + trtbc, sigma)
+ybd = rnorm(n, trt0 + trtb + trtd + trtbd, sigma)
+ycd = rnorm(n, trt0 + trtc + trtd + trtcd, sigma)
+yabc = rnorm(n, trt0 + trta + trtb + trtc + trtab + trtbc + trtac + trtabc, 
+             sigma)
+yabd = rnorm(n, trt0 + trta + trtb + trtd + trtab + trtad + trtbd + trtabd, 
+             sigma)
+yacd = rnorm(n, trt0 + trta + trtc + trtd + trtac + trtad + trtcd + trtacd, 
+             sigma)
+ybcd = rnorm(n, trt0 + trtb + trtc + trtd + trtbc + trtbd + trtcd + trtbcd, 
+             sigma)
+yabcd = rnorm(n, trt0 + trta + trtb + trtc + trtd + trtab + trtac + trtad + 
+                trtbc + trtbd + trtcd + trtabc + trtabd + trtacd + trtbcd + 
+                trtabcd, sigma)
+
+#make a matrix with 4 rows per treatment group in order of treatment group
+thedata = rbind(x0, x0, x0, x0)
+thedata = rbind(thedata, xa, xa, xa, xa)
+thedata = rbind(thedata, xb, xb, xb, xb)
+thedata = rbind(thedata, xc, xc, xc, xc)
+thedata = rbind(thedata, xd, xd, xd, xd)
+thedata = rbind(thedata, xab, xab, xab, xab)
+thedata = rbind(thedata, xac, xac, xac, xac)
+thedata = rbind(thedata, xad, xad, xad, xad)
+thedata = rbind(thedata, xbc, xbc, xbc, xbc)
+thedata = rbind(thedata, xbd, xbd, xbd, xbd)
+thedata = rbind(thedata, xcd, xcd, xcd, xcd)
+thedata = rbind(thedata, xabc, xabc, xabc, xabc)
+thedata = rbind(thedata, xabd, xabd, xabd, xabd)
+thedata = rbind(thedata, xacd, xacd, xacd, xacd)
+thedata = rbind(thedata, xbcd, xbcd, xbcd, xbcd)
+thedata = rbind(thedata, xabcd, xabcd, xabcd, xabcd)
+
+#now add the y column, which is in the same order as thedata
+y = c(y0, ya, yb, yc, yd, yab, yac, yad, ybc, ybd, ycd, yabc, yabd, yacd, 
+      ybcd, yabcd) 
+thedata = cbind(thedata, y)
+thedata = data.frame(thedata)
+names(thedata)[1:4] = c("A", "B", "C", "D")
+```
+
+And printing all the data:
+
+```{r}
+thedata |> kable() 
+```
+
+## b) 
+
+Yes! The values for the main and interaction effects are all fairly close to the 
+true values in the table below. 
+
+```{r}
+mod_b = lm(y ~ A*B + A*C + A*D + B*C + B*D + C*D, data=thedata) 
+
+output_b = data.frame(
+  estimate = coef(mod_b),
+  true = true_values
+)
+
+output_b |> kable() 
+```
+## c) 
+
+The interaction effect between B and C can be thought of as the "extra" effect
+that combining the two treatments has that each of the individual treatments 
+does not. Since we have a positive effect here, we conclude that the two treatments 
+do more together than they do individually. 
+
+As an example, say we're measuring levels of impairment in individuals 
+who take certain drugs. Say treatment `B == Alcohol` and `C == Benzodiazepines`. 
+An individual would feel some kind of impairment from Alcohol, and some kind of 
+impairment from Benzodiazepines, but combining them has a severe (and can be fatal)
+effect that neither of the treatments alone have. 
+
+## d)
+
+### Comparison
+
+Visually inspecting the output table, it looks like this model does much worse
+than the first model. In particular, the three-way interaction effects are 
+very far from the truth. 
+
+```{r}
+mod_d = lm(y ~ A*B + A*C + A*D + B*C + B*D + C*D + 
+                   A*B*C + A*B*D + A*C*D + B*C*D, 
+                   data=thedata)
+
+output_d = data.frame(
+  estimate = coef(mod_d),
+  true = true_three
+)
+
+output_d |> kable() 
+
+```
+
+### Nested F-test 
+
+No. In the F-test, the null hypothesis we're suggesting is that the three-way 
+interactions would be non-zero. Since we have a p-value = 0.1486, we conclude 
+that including them does not add to the model. 
+
+```{r}
+anova(mod_b, mod_d)
+```
+
+
+# Q2) 
+
+## a) 
+
+```{r}
+fractional = thedata[c(1:4, 21:44, 61:64), ]
+fractional |> kable()
+```
+
+## b) 
+
+Yes, based on the summary below, 3 of the interaction effects are NA values,
+indicating R couldn't fit them.
+
+```{r}
+mod_b_2 = lm(y ~ A*B + A*C + A*D + B*C + B*D + C*D, data=fractional)
+
+summary(mod_b_2)
+```
+## c) 
+
+We can only estimate one set of interactions here! The summary is reported 
+below.
+
+```{r}
+mod_c_2 = lm(y ~ A*B + C*D, data = fractional) 
+summary(mod_c_2)
+```
+## d) 
+
+No, the interactions here do not equal the true values. This is because, for example, 
+AB and CD are aliased, so we are assuming the CD interaction is negligible when 
+fitting A:B. But, since we generated the data, we know that is not true. 
+
+```{r}
+mod_d_2 = lm(y ~ A*B + A*C + A*D , data = fractional)
+summary(mod_d_2)
+```
+
+```{r}
+output_d_2 = data.frame(
+  estimate = coef(mod_d_2),
+  true = true_values[1:8]
+)
+
+output_d_2 |> kable() 
+```
+
+# Q3) 
+
+## a) 
+
+Here just copy-pasting from Q1) but with different interactions and printing
+the dataset.
+
+```{r}
+#set up a true mean value for cases that get no treatments at all
+trt0 = 10
+
+#set up true values for the main effects for 4 treatments
+trta = 2
+trtb = -1
+trtc = 4
+trtd = 3
+
+#set up true values for the effects for two-way interactions 
+trtab = 4
+trtac = -1
+trtad = 2
+
+#these are for use in Problem 3
+trtbc = 0
+trtbd = 0
+trtcd = 0
+
+#we will set all three-way interactions and the four-way interaction
+trtabc = 0
+trtabd = 0
+trtacd = 0
+trtbcd = 0
+trtabcd = 0
+
+true_values = c(trt0, trta, trtb, trtc, trtd, trtab, trtac, trtad, 
+                trtbc, trtbd, trtcd)
+
+true_three = c(true_values, 0, 0, 0, 0)
+
+x0 = c(0, 0, 0, 0)
+xa = c(1, 0, 0, 0)
+xb = c(0, 1, 0, 0)
+xc = c(0, 0, 1, 0)
+xd = c(0, 0, 0, 1)
+xab = c(1, 1, 0, 0)
+xac = c(1, 0, 1, 0)
+xad = c(1, 0, 0, 1)
+xbc = c(0, 1, 1, 0)
+xbd = c(0, 1, 0, 1)
+xcd = c(0, 0, 1, 1)
+xabc = c(1, 1, 1, 0)
+xabd = c(1, 1, 0, 1)
+xacd = c(1, 0, 1, 1)
+xbcd = c(0, 1, 1, 1)
+xabcd = c(1, 1, 1, 1)
+
+## with this information, you can make the datasets needed
+#to answer the questions about the full factorial design
+
+n = 4
+sigma = 0.2
+y0 = rnorm(n, trt0, sigma)
+ya = rnorm(n, trt0 + trta, sigma)
+yb = rnorm(n, trt0 + trtb, sigma)
+yc = rnorm(n, trt0 + trtc, sigma)
+yd = rnorm(n, trt0 + trtd, sigma)
+yab = rnorm(n, trt0 + trta + trtb + trtab, sigma)
+yac = rnorm(n, trt0 + trta + trtc + trtac, sigma)
+yad = rnorm(n, trt0 + trta + trtd + trtad, sigma)
+ybc = rnorm(n, trt0 + trtb + trtc + trtbc, sigma)
+ybd = rnorm(n, trt0 + trtb + trtd + trtbd, sigma)
+ycd = rnorm(n, trt0 + trtc + trtd + trtcd, sigma)
+yabc = rnorm(n, trt0 + trta + trtb + trtc + trtab + trtbc + trtac + trtabc, 
+             sigma)
+yabd = rnorm(n, trt0 + trta + trtb + trtd + trtab + trtad + trtbd + trtabd, 
+             sigma)
+yacd = rnorm(n, trt0 + trta + trtc + trtd + trtac + trtad + trtcd + trtacd, 
+             sigma)
+ybcd = rnorm(n, trt0 + trtb + trtc + trtd + trtbc + trtbd + trtcd + trtbcd, 
+             sigma)
+yabcd = rnorm(n, trt0 + trta + trtb + trtc + trtd + trtab + trtac + trtad + 
+                trtbc + trtbd + trtcd + trtabc + trtabd + trtacd + trtbcd + 
+                trtabcd, sigma)
+
+#make a matrix with 4 rows per treatment group in order of treatment group
+thedata = rbind(x0, x0, x0, x0)
+thedata = rbind(thedata, xa, xa, xa, xa)
+thedata = rbind(thedata, xb, xb, xb, xb)
+thedata = rbind(thedata, xc, xc, xc, xc)
+thedata = rbind(thedata, xd, xd, xd, xd)
+thedata = rbind(thedata, xab, xab, xab, xab)
+thedata = rbind(thedata, xac, xac, xac, xac)
+thedata = rbind(thedata, xad, xad, xad, xad)
+thedata = rbind(thedata, xbc, xbc, xbc, xbc)
+thedata = rbind(thedata, xbd, xbd, xbd, xbd)
+thedata = rbind(thedata, xcd, xcd, xcd, xcd)
+thedata = rbind(thedata, xabc, xabc, xabc, xabc)
+thedata = rbind(thedata, xabd, xabd, xabd, xabd)
+thedata = rbind(thedata, xacd, xacd, xacd, xacd)
+thedata = rbind(thedata, xbcd, xbcd, xbcd, xbcd)
+thedata = rbind(thedata, xabcd, xabcd, xabcd, xabcd)
+
+#now add the y column, which is in the same order as thedata
+y = c(y0, ya, yb, yc, yd, yab, yac, yad, ybc, ybd, ycd, yabc, yabd, yacd, 
+      ybcd, yabcd) 
+thedata = cbind(thedata, y)
+thedata = data.frame(thedata)
+names(thedata)[1:4] = c("A", "B", "C", "D")
+
+fractional = thedata[c(1:4, 21:44, 61:64), ]
+fractional |> kable()
+```
+
+## b) 
+
+Yes, confirming that we can only fit 3 interactions here.
+
+```{r}
+mod_b_3 = lm(y ~ A*B + A*C + A*D + B*C + B*D + C*D , data = fractional)
+summary(mod_b_3)
+```
+
+## c) 
+
+Yes, these estimates look much better compared to Question 2, since now we know
+that the true interaction effects for the aliased variables are 0.
+
+```{r}
+mod_c_3 = lm(y ~ A*B + A*C + A*D, data = fractional)
+summary(mod_c_3)
+```
+```{r}
+output_d_3 = data.frame(
+  estimate = coef(mod_c_3),
+  true = true_values[1:8]
+)
+
+output_d_3 |> kable() 
+```
+

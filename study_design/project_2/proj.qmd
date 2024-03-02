@@ -1,0 +1,132 @@
+---
+title: "Project 2, STA 522/322"
+author: "Will Tirone, Megan Stone"
+format: pdf
+---
+
+```{r include=FALSE}
+library(tidyverse)
+library(kableExtra)
+```
+
+# Data Prep
+
+```{r setup}
+data = read.csv("heli_data.csv")
+data$factors = as.factor(data$factors)
+data = pivot_longer(data, 
+                    c('flightTime1','flightTime2', 'flightTime3','flightTime4'),
+                    names_to = 'trial') |> 
+  mutate(
+    rotor_length_A = as.factor(rotorLength_A),
+    leg_length_B = as.factor(legLength_B),
+    leg_width_C = as.factor(legWidth_C),
+    paperclip_D = as.factor(paperClip_D)
+  )
+  
+```
+
+# Design
+
+The following is a list of the treatment combinations we used for our half replicate factorial experiment. Since there were 4 treatments, the full design has $2^4$ treatment combinations. Our design has $2^3$ levels, so we had 8 separate helicopter constructions.
+
+The labels for the construction types are:
+
+-   A: Rotor length, the high level is 8.5cm and the low level is 7.5cm.
+
+-   B: Leg length, the high level is 12 cm and the low level is 7.5cm.
+
+-   C: Leg width, the high level is 5 cm and the low level is 3.2 cm.
+
+-   D: Paperclip: the high level is with a paperclip, and the low is without.
+
+And the body of the helicopters were always 2 inches. Because of time constraints, we ran 4 trials for each construction for a total of 32 trials. To be as precise as possible, helicopters were made using a paper trimmer board with a measurement grid. We also confirmed that all helicopters were dropped from precisely 6ft by using a measuring tape. The paper clips were all the same size and brand, and we excluded trials where the helicopters ran into pieces of furniture.
+
+-   I = short rotor, short leg, thin leg, no paper clip
+
+-   AD = long rotor, short leg, thin leg, paper clip
+
+-   BD = short rotor, long leg, thin leg, paper clip (spun very prettily)
+
+-   AB = long rotor, short leg, thin leg, paper clip
+
+-   CD = short rotor, short leg, wide leg, paper clip
+
+-   AC = long rotor, short leg, wide leg, no paper clip
+
+-   BC = short rotor, long leg, wide leg, no paper clip (notably, twirled upside down)
+
+-   ABCD = long rotor, long leg, wide leg, paper clip (also spun prettily)
+
+# Analysis
+
+Initially, we see very heterogeneous results across helicopter construction. Looking at the baseline group with all treatments set to low, it doesn't seem like there's a lot of evidence that any of treatments do much to extend helicopter flight length.
+
+Constructions AD *(long rotor, short leg, thin leg, paper clip)* and CD *(short rotor, short leg, wide leg, paper clip)* look particularly bad, so we'll examine in the regression why that might be the case.
+
+```{r initial examiation}
+data |> 
+  ggplot() + 
+  geom_boxplot(aes(x = factors, y = value), fill = '#00539B') + 
+  theme_minimal() + 
+  labs(
+    title = "Helicopter Flight Data",
+    x = 'Treatment Factors',
+    y = 'Flight Time in Seconds'
+  )
+```
+
+# Regression Analysis
+
+As we know from class and methods 9, this half replicate only lets us estimate the main effects and three two-way interaction effects because of aliasing. Thus, we we will estimate the main effects for A, B, C, and D, along with interactions for AB, AC, and AD. So our model is:
+
+$$
+y_i = \beta_1A_i + \beta_2B_i + \beta_3C_i + \beta_4D_i + \beta_5AB_i + \beta_6AC_i + \beta_7AD_i
+$$
+
+```{r}
+m1 = lm(value ~ rotor_length_A + leg_length_B + 
+          leg_width_C + paperclip_D + 
+          rotor_length_A:leg_length_B + 
+          rotor_length_A:leg_width_C + 
+          rotor_length_A:paperclip_D, data = data)
+
+bind_cols(
+  data.frame(summary(m1)$coefficients),
+  data.frame(confint(m1))
+  ) |> 
+  dplyr::select(Estimate, Std..Error, Pr...t.., X2.5.., X97.5..) |> 
+  mutate(estimate = round(Estimate, 3),
+         SE = round(Std..Error, 3), 
+         p_val = round(Pr...t.., 3),
+         lb_2.5 = round(X2.5.., 3),
+         ub_97.5 = round(X97.5.., 3)) |> 
+  dplyr::select(estimate, SE, p_val, lb_2.5, ub_97.5) |> 
+  kable()
+```
+
+We have a fairly small number of observations at 32, but we can perform analysis on the fit of the model. The residuals fan out slightly and we have two potential outlier points, but that does not seem overly concerning on such a small sample.
+
+The QQ plot looks fairly good as well, so our data is probably approximately normal. The outliers we saw in the residual plot are noticeable in the tails, but again that is not too concerning, especially in the tails.
+
+```{r}
+plot(m1, which=c(1,2))
+```
+
+# Answers to Questions:
+
+### 1) Which factors seem to be the most important for making helicopters that fly longer?
+
+Considering the main effects, it looks like the additional weight from the "high" level of the effects was detrimental to flight length. In general, shorter constructions features and lighter weight was better. It also makes sense that something like adding a paperclip would cause shorter flight times since this is dead weight that drags down the helicopter - this also reassures us that our experiment and regression worked.
+
+In the table of confidence intervals above, main effects A, C, and D, have confidence intervals with negative lower and upper bounds and very small p-values, so we have strong evidence that the high levels of each have negative effect on flight length. B has a large p-value, and the interval covers 0 so we're more uncertain on the effect B has.
+
+### 2) Is there any evidence that the effect of rotor length differs by leg width?
+
+This is our coefficient $\beta_6 = 0.59$ with a 95% confidence interval of $[0.349, 0.831]$, so there's fairly strong evidence that it does! This means that with both at the "high" treatment level, the helicopter flies on average 0.59 seconds longer than it would if either leg width or rotor length were at their baseline (low) levels. Additionally, the p-value for this coefficient is effectively zero, further indicating that the evidence is strong for this interaction effect.
+
+### 3) What would you recommend as the ideal combination to make the helicopter fly long?
+
+The best combination from our experiment was the baseline level, which is short rotor, leg length, leg width, and no paperclip. We expect this combination to fly, on average, 1.955 seconds when dropped from a height of 6 ft.
+
+However, it's very important to note that we could not estimate all of the two-way interactions, any of the three-way interactions, or the four-way interaction.

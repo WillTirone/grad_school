@@ -1,0 +1,64 @@
+---
+author: "Will Tirone"
+title: "Methods 6"
+format: pdf
+---
+
+```{r include=FALSE}
+library(tidyverse)
+library(survey)
+ncvs = read.csv('ncvs2000.csv')
+```
+
+# Q1) 
+
+Here, we'll just multiply the successive probabilities of being selected together.
+
+$$
+\pi_{ij} = \frac{n x_i}{t_x} \frac{m_i x_{ij}}{x_i} \frac{q_{ij}}{x_{ij}} = \frac{n m q_{ij}}{t_x}
+$$
+# Q2)
+
+First, we have to create unique values for the ppsu's, we'll do this by multiplying 
+by 1000 and adding the ppsu's. 
+
+```{r}
+ncvs = ncvs |> 
+  mutate(ppsu_unique = pstrat * 1000 + ppsu)
+
+ncvs_survey = svydesign(~ppsu_unique, strata=~pstrat, weight=~pweight, data=ncvs)
+```
+
+## a) 
+
+Here, I checked the codebook and `numinc` is the number of incidents per person, 
+so we just use the usual code. The total is 15,850,360. 
+
+```{r}
+svytotal(~numinc, ncvs_survey)
+```
+
+## b)
+
+Same thing here, just using `medexp` for medical expenses. The total is 
+$86,285,440
+
+```{r}
+svytotal(~medexp, ncvs_survey)
+```
+
+## c) 
+
+And a similar thing here but with robbery. The mean is fairly low, which probably 
+makes sense. About 1 in 610 people commits a robbery. 
+
+```{r}
+svymean(~robbery, ncvs_survey)
+```
+
+
+
+
+
+
+

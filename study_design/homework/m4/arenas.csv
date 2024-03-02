@@ -1,0 +1,385 @@
+Image,Arena,City,State,Team,Conference,Capacity,Opened
+,Conte Forum,Chestnut Hill,MA,Boston College,ACC,"8,606",1988
+,Littlejohn Coliseum,Clemson,SC,Clemson,ACC,"9,000",1968
+,Cameron Indoor Stadium,Durham,NC,Duke,ACC,"9,314",1940
+,Donald L. Tucker Civic Center,Tallahassee,FL,Florida State,ACC,"12,100",1981
+,Hank McCamish Pavilion,Atlanta,GA,Georgia Tech,ACC,"8,600",1956
+,KFC Yum! Center,Louisville,KY,Louisville,ACC,"22,090",2010
+,Watsco Center,Coral Gables,FL,Miami (FL),ACC,"7,972",2003
+,Dean Smith Center,Chapel Hill,NC,North Carolina men,ACC,"21,750",1986
+,Carmichael Arena,Chapel Hill,NC,North Carolina women,ACC,"8,010",1965
+,PNC Arena,Raleigh,NC,North Carolina State men,ACC,"19,557",1999
+,Reynolds Coliseum,Raleigh,NC,North Carolina State women,ACC,"5,500",1949
+,Edmund P. Joyce Center,Notre Dame,IN,Notre Dame,ACC,"9,149",1968
+,Petersen Events Center,Pittsburgh,PA,Pittsburgh,ACC,"12,508",2002
+,JMA Wireless Dome,Syracuse,NY,Syracuse,ACC,"35,446",1980
+,John Paul Jones Arena,Charlottesville,VA,Virginia,ACC,"14,593",2006
+,Cassell Coliseum,Blacksburg,VA,Virginia Tech,ACC,"10,052",1962
+,Lawrence Joel Veterans Memorial Coliseum,Winston-Salem,NC,Wake Forest,ACC,"14,665",1989
+,SEFCU Arena,Guilderland,NY,Albany,America East,"4,538",1992
+,Binghamton University Events Center,Vestal,NY,Binghamton,America East,"5,142",2004
+,Cross Insurance Center,Bangor,ME,Maine,America East,"5,800",2013
+,Lundholm Gym,Durham,NH,New Hampshire,America East,"3,500",1938
+,Chace Athletic Center,Smithfield,RI,Bryant,America East,"2,700",2001
+,Wellness and Events Center,Newark,NJ,NJIT,America East,"3,500",2017
+,Costello Athletic Center,Lowell,MA,UMass Lowell,America East,"2,100",1964
+,Tsongas Center,Lowell,MA,UMass Lowell,America East,"6,496",1998
+,Chesapeake Employers Insurance Arena,Catonsville,MD,UMBC,America East,"5,000",2018
+,Patrick Gym,Burlington,VT,Vermont,America East,"3,228",1963
+,Dale F. Halton Arena,Charlotte,NC,Charlotte,The American,"9,105",1996
+,Williams Arena at Minges Coliseum,Greenville,NC,East Carolina,The American,"8,000",1968
+,FAU Arena,Boca Raton,FL,Florida Atlantic,The American,"2,900",1984
+,FedExForum,Memphis,TN,Memphis,The American,"18,119",2004
+,Elma Roane Fieldhouse,Memphis,TN,Memphis women,The American,"2,565",1951
+,UNT Coliseum,Denton,TX,North Texas,The American,"10,032",1973
+,Tudor Fieldhouse,Houston,TX,Rice,The American,"5,750",1950
+,Moody Coliseum,University Park,TX,SMU,The American,"7,000",1956
+,Yuengling Center,Tampa,FL,South Florida,The American,"10,411",1980
+,Liacouras Center,Philadelphia,PA,Temple,The American,"10,205",1997
+,Devlin Fieldhouse,New Orleans,LA,Tulane,The American,"3,600",1933
+,Reynolds Center,Tulsa,OK,Tulsa,The American,"8,355",1998
+,Bartow Arena,Birmingham,AL,UAB,The American,"8,508",1988
+,Convocation Center,San Antonio,TX,UTSA,The American,"4,080",1975
+,Charles Koch Arena,Wichita,KS,Wichita State,The American,"10,506",1955
+,F&M Bank Arena,Clarksville,TN,Austin Peay,ASUN,"5,500",2023
+,Freedom Hall,Louisville,KY,Bellarmine,ASUN,"18,252",1956
+,Farris Center,Conway,AR,Central Arkansas,ASUN,"6,000",1972
+,Alumni Coliseum,Richmond,KY,Eastern Kentucky,ASUN,"6,500",1963
+,Alico Arena,Fort Myers,FL,Florida Gulf Coast,ASUN,"4,500",2002
+,Swisher Gymnasium,Jacksonville,FL,Jacksonville,ASUN,"1,500",1953
+,KSU Convocation Center,Kennesaw,GA,Kennesaw State,ASUN,"4,792",2003
+,Allen Arena,Nashville,TN,Lipscomb,ASUN,"5,028",2001
+,Flowers Hall,Florence,AL,North Alabama,ASUN,"3,900",1972
+,UNF Arena,Jacksonville,FL,North Florida,ASUN,"5,800",1993
+,Curry Arena,Charlotte,NC,Queens,ASUN,"2,500",2012
+,Edmunds Center,DeLand,FL,Stetson,ASUN,"5,000",1974
+,John M. Belk Arena,Davidson,NC,Davidson,Atlantic 10,"5,223",1989
+,University of Dayton Arena,Dayton,OH,Dayton,Atlantic 10,"13,435",1969
+,UPMC Cooper Fieldhouse,Pittsburgh,PA,Duquesne,Atlantic 10,"3,500",1988
+,Rose Hill Gymnasium,Bronx,NY,Fordham,Atlantic 10,"3,200",1925
+,EagleBank Arena,Fairfax,VA,George Mason,Atlantic 10,"10,000",1985
+,Charles E. Smith Center,Washington,DC,George Washington,Atlantic 10,"5,000",1975
+,Tom Gola Arena,Philadelphia,PA,La Salle,Atlantic 10,"3,400",1998
+,Joseph J. Gentile Arena,Chicago,IL,Loyola Chicago,Atlantic 10,"4,486",1996
+,Mullins Center,Amherst,MA,Massachusetts,Atlantic 10,"9,493",1993
+,Ryan Center,Kingston,RI,Rhode Island,Atlantic 10,"7,657",2002
+,Robins Center,Richmond,VA,Richmond,Atlantic 10,"7,201",1972
+,Reilly Center,St. Bonaventure,NY,St. Bonaventure,Atlantic 10,"5,480",1966
+,Hagan Arena,Philadelphia,PA,Saint Joseph's,Atlantic 10,"4,200",1949
+,Chaifetz Arena,St. Louis,MO,Saint Louis,Atlantic 10,"10,600",2008
+,Siegel Center,Richmond,VA,Virginia Commonwealth,Atlantic 10,"7,617",1999
+,Ferrell Center,Waco,TX,Baylor,Big 12,"10,347",1988
+,Marriott Center,Provo,UT,BYU,Big 12,"19,000",1971
+,Fifth Third Arena,Cincinnati,OH,Cincinnati,Big 12,"12,012",1989
+,Fertitta Center,Houston,TX,Houston,Big 12,"7,100",1969
+,Hilton Coliseum,Ames,IA,Iowa State,Big 12,"14,376",1971
+,Allen Fieldhouse,Lawrence,KS,Kansas,Big 12,"16,300",1955
+,Bramlage Coliseum,Manhattan,KS,Kansas State,Big 12,"12,528",1988
+,Lloyd Noble Center,Norman,OK,Oklahoma,"Big 12
+(SEC in 2024)","11,528",1973
+,Gallagher-Iba Arena,Stillwater,OK,Oklahoma State,Big 12,"13,611",1938
+,Moody Center,Austin,TX,Texas,"Big 12
+(SEC in 2024)","10,763",2022
+,Schollmaier Arena,Fort Worth,TX,TCU,Big 12,"8,500",1961
+,United Supermarkets Arena,Lubbock,TX,Texas Tech,Big 12,"15,300",1999
+,Addition Financial Arena,Orlando,FL,UCF,Big 12,"9,465",2007
+,WVU Coliseum,Morgantown,WV,West Virginia,Big 12,"14,000",1970
+,Hinkle Fieldhouse,Indianapolis,IN,Butler,Big East,"9,100",1928
+,CHI Health Center Omaha,Omaha,NE,Creighton men,Big East,"18,320",2003
+,D. J. Sokol Arena,Omaha,NE,Creighton women,Big East,"2,950",2009
+,Wintrust Arena,Chicago,IL,DePaul,Big East,"10,387",2017
+,Capital One Arena,Washington,DC,Georgetown men,Big East,"20,308",1997
+,McDonough Gymnasium,Washington,DC,Georgetown women,Big East,"2,500",1951
+,Fiserv Forum,Milwaukee,WI,Marquette men,Big East,"17,500",2018
+,Al McGuire Center,Milwaukee,WI,Marquette women,Big East,"4,000",2004
+,Amica Mutual Pavilion,Providence,RI,Providence men,Big East,"12,400",1972
+,Alumni Hall,Providence,RI,Providence women,Big East,"2,620",1955
+,Prudential Center,Newark,NJ,Seton Hall men,Big East,"18,711",2007
+,Walsh Gymnasium,South Orange,NJ,Seton Hall women,Big East,"1,316",1941
+,Madison Square Garden,New York,NY,St. John's men,Big East,"19,812",1968
+,Carnesecca Arena,Queens,NY,St. John's women,Big East,"5,602",1961
+,Harry A. Gampel Pavilion,Storrs,CT,UConn,Big East,"10,167",1990
+,Finneran Pavilion,Villanova,PA,Villanova,Big East,"6,500",1986
+,Cintas Center,Cincinnati,OH,Xavier,Big East,"10,250",2000
+,Reese Court,Cheney,WA,Eastern Washington,Big Sky,"6,000",1981
+,Idaho Central Credit Union Arena,Moscow,ID,Idaho,Big Sky,"4,200",2021
+,Holt Arena,Pocatello,ID,Idaho State men,Big Sky,"8,000",1970
+,Reed Gym,Pocatello,ID,Idaho State women,Big Sky,"3,214",1951
+,Dahlberg Arena,Missoula,MT,Montana,Big Sky,"7,321",1953
+,Brick Breeden Fieldhouse,Bozeman,MT,Montana State,Big Sky,"7,250",1957
+,Walkup Skydome,Flagstaff,AZ,Northern Arizona,Big Sky,"11,230",1977
+,Bank of Colorado Arena,Greeley,CO,Northern Colorado,Big Sky,"2,992",1975
+,Viking Pavilion,Portland,OR,Portland State,Big Sky,"3,094",1966
+,Hornets Nest,Sacramento,CA,Sacramento State,Big Sky,"1,012",1955
+,Dee Events Center,Ogden,UT,Weber State,Big Sky,"11,500",1977
+,Buccaneer Field House,North Charleston,SC,Charleston Southern,Big South,881,1965
+,Paul Porter Arena,Boiling Springs,NC,Gardner–Webb,Big South,"5,000",1982
+,Nido & Mariana Qubein Arena and Conference Center,High Point,NC,High Point,Big South,"4,500",2021
+,Joan Perry Brock Center,Farmville,VA,Longwood,Big South,"3,000",2023
+,Templeton Physical Education Center,Clinton,SC,Presbyterian,Big South,"2,300",1975
+,Dedmon Center,Radford,VA,Radford,Big South,"3,205",1981
+,Kimmel Arena,Asheville,NC,UNC Asheville,Big South,"3,200",2011
+,G. B. Hodge Center,Spartanburg,SC,USC Upstate,Big South,878,1973
+,Winthrop Coliseum,Rock Hill,SC,Winthrop,Big South,"6,100",1982
+,State Farm Center,Champaign,IL,Illinois,Big Ten,"15,544",1963
+,Simon Skjodt Assembly Hall,Bloomington,IN,Indiana,Big Ten,"17,472",1971
+,Carver–Hawkeye Arena,Iowa City,IA,Iowa,Big Ten,"15,500",1983
+,Xfinity Center,College Park,MD,Maryland,Big Ten,"17,950",2002
+,Crisler Center,Ann Arbor,MI,Michigan,Big Ten,"12,707",1967
+,Breslin Student Events Center,East Lansing,MI,Michigan State,Big Ten,"14,797",1989
+,Williams Arena,Minneapolis,MN,Minnesota,Big Ten,"14,625",1928
+,Pinnacle Bank Arena,Lincoln,NE,Nebraska,Big Ten,"15,147",2013
+,Welsh–Ryan Arena,Evanston,IL,Northwestern,Big Ten,"7,039",1952
+,Value City Arena,Columbus,OH,Ohio State,Big Ten,"18,809",1998
+,Bryce Jordan Center,University Park,PA,Penn State,Big Ten,"15,261",1996
+,Mackey Arena,West Lafayette,IN,Purdue,Big Ten,"14,848",1967
+,Jersey Mike's Arena,Piscataway,NJ,Rutgers,Big Ten,"8,000",1977
+,Kohl Center,Madison,WI,Wisconsin,Big Ten,"17,249",1998
+,Robert A. Mott Athletics Center,San Luis Obispo,CA,Cal Poly,Big West,"3,032",1960
+,Icardo Center,Bakersfield,CA,Cal State Bakersfield,Big West,"3,800",1989
+,Titan Gym,Fullerton,CA,Cal State Fullerton,Big West,"4,000",1964
+,Premier America Credit Union Arena,Northridge,CA,Cal State Northridge,Big West,"2,500",1962
+,Stan Sheriff Center,Honolulu,HI,Hawaii,Big West,"10,300",1994
+,Walter Pyramid,Long Beach,CA,Long Beach State,Big West,"5,000",1994
+,The Pavilion at ARC,Davis,CA,UC Davis,Big West,"7,600",1977
+,Bren Events Center,Irvine,CA,UC Irvine,Big West,"4,984",1987
+,Student Recreation Center Arena,Riverside,CA,UC Riverside,Big West,"3,168",1994
+,RIMAC Arena,La Jolla,CA,UC San Diego,Big West,"4,200",1995
+,UC Santa Barbara Events Center,Santa Barbara,CA,UC Santa Barbara,Big West,"5,600",1979
+,"John W. Pope, Jr. Convocation Center",Buies Creek,NC,Campbell,CAA,"3,095",2008
+,TD Arena,Charleston,SC,Charleston,CAA,"5,100",2008
+,Bob Carpenter Center,Newark,DE,Delaware,CAA,"5,000",1992
+,Daskalakis Athletic Center,Philadelphia,PA,Drexel,CAA,"2,509",1974
+,Schar Center,Elon,NC,Elon,CAA,"5,100",2018
+,Hampton Convocation Center,Hampton,VA,Hampton,CAA,"7,200",1993
+,Mack Sports Complex,Hempstead,NY,Hofstra,CAA,"5,124",2000
+,OceanFirst Bank Center,West Long Branch,NJ,Monmouth,CAA,"4,100",2009
+,Corbett Sports Center,Greensboro,NC,North Carolina A&T,CAA,"5,700",1978
+,Matthews Arena,Boston,MA,Northeastern men,CAA,"6,000",1910
+,Cabot Center,Boston,MA,Northeastern women,CAA,"2,500",1954
+,Island Federal Credit Union Arena,Stony Brook,NY,Stony Brook,CAA,"4,160",1967
+,SECU Arena,Towson,MD,Towson,CAA,"5,200",2013
+,Trask Coliseum,Wilmington,NC,UNC Wilmington,CAA,"5,200",1977
+,Kaplan Arena,Williamsburg,VA,William & Mary,CAA,"11,300",1971
+,Ocean Bank Convocation Center,Miami,FL,FIU,C-USA,"5,000",1986
+,Pete Mathews Coliseum,Jacksonville,AL,Jacksonville State,C-USA,"5,300",1974
+,Liberty Arena,Lynchburg,VA,Liberty,C-USA,"4,000",2020
+,Thomas Assembly Center,Ruston,LA,Louisiana Tech,C-USA,"8,098",1982
+,Murphy Center,Murfreesboro,TN,Middle Tennessee,C-USA,"11,520",1972
+,Pan American Center,Las Cruces,NM,New Mexico State,C-USA,"12,482",1968
+,Bernard Johnson Coliseum,Huntsville,TX,Sam Houston,C-USA,"6,100",1976
+,Don Haskins Center,El Paso,TX,UTEP,C-USA,"12,222",1976
+,E. A. Diddle Arena,Bowling Green,KY,Western Kentucky,C-USA,"7,326",1963
+,Wolstein Center,Cleveland,OH,Cleveland State,Horizon,"13,610",1991
+,Calihan Hall,Detroit,MI,Detroit Mercy,Horizon,"8,295",1952
+,Resch Center,Ashwaubenon,WI,Green Bay men,Horizon,"9,729",2002
+,Kress Events Center,Green Bay,WI,Green Bay women,Horizon,"4,018",2007
+,Indiana Farmers Coliseum,Indianapolis,IN,IUPUI men,Horizon,"6,841",1939
+,The Jungle,Indianapolis,IN,IUPUI women,Horizon,"1,215",1982
+,UW–Milwaukee Panther Arena,Milwaukee,WI,Milwaukee men,Horizon,"10,783",1950
+,Klotsche Center,Milwaukee,WI,Milwaukee women,Horizon,"3,500",1977
+,Truist Arena,Highland Heights,KY,Northern Kentucky,Horizon,"9,400",2008
+,Athletics Center O'rena,Rochester,MI,Oakland,Horizon,"4,005",1998
+,Hilliard Gates Sports Center,Fort Wayne,IN,Purdue Fort Wayne,Horizon,"2,300",1981
+,UPMC Events Center,Moon Township,PA,Robert Morris,Horizon,"4,000",2019
+,Nutter Center,Fairborn,OH,Wright State,Horizon,"10,400",1990
+,Beeghly Center,Youngstown,OH,Youngstown State,Horizon,"6,500",1972
+,Pizzitola Sports Center,Providence,RI,Brown,Ivy,"2,800",1989
+,Levien Gymnasium,New York,NY,Columbia,Ivy,"3,408",1974
+,Newman Arena,Ithaca,NY,Cornell,Ivy,"4,473",1990
+,Leede Arena,Hanover,NH,Dartmouth,Ivy,"2,100",1986
+,Lavietes Pavilion,Allston,MA,Harvard,Ivy,"2,195",1982
+,Palestra,Philadelphia,PA,Penn,Ivy,"8,722",1927
+,Jadwin Gymnasium,Princeton,NJ,Princeton,Ivy,"6,854",1969
+,John J. Lee Amphitheater,New Haven,CT,Yale,Ivy,"2,532",1932
+,Emil and Patricia Jones Convocation Center,Chicago,IL,Chicago State,Independent,"7,000",2007
+,Koessler Athletic Center,Buffalo,NY,Canisius,MAAC,"2,176",1968
+,Leo D. Mahoney Arena,Fairfield,CT,Fairfield,MAAC,"3,500",2022
+,Hynes Athletic Center,New Rochelle,NY,Iona,MAAC,"2,611",1974
+,Draddy Gymnasium,Bronx,NY,Manhattan,MAAC,"2,345",1978
+,McCann Arena,Poughkeepsie,NY,Marist,MAAC,"3,200",1977
+,Knott Arena,Emmitsburg,MD,Mount St. Mary's,MAAC,"3,121",1987
+,Gallagher Center,Lewiston,NY,Niagara,MAAC,"2,400",1949
+,People's United Center,Hamden,CT,Quinnipiac,MAAC,"3,570",2007
+,Alumni Gymnasium,Lawrenceville,NJ,Rider,MAAC,"1,950",1958
+,MVP Arena,Albany,NY,Siena men,MAAC,"15,229",1990
+,Alumni Recreation Center,Loudonville,NY,Siena women,MAAC,"4,000",1974
+,Yanitelli Center,Jersey City,NJ,Saint Peter's,MAAC,"3,200",1975
+,James A. Rhodes Arena,Akron,OH,Akron,MAC,"5,500",1983
+,Worthen Arena,Muncie,IN,Ball State,MAC,"11,500",1991
+,Stroh Center,Bowling Green,OH,Bowling Green,MAC,"4,700",2011
+,Alumni Arena,Amherst,NY,Buffalo,MAC,"6,100",1982
+,McGuirk Arena,Mount Pleasant,MI,Central Michigan,MAC,"5,300",1973
+,George Gervin GameAbove Center,Ypsilanti,MI,Eastern Michigan,MAC,"8,824",1998
+,Memorial Athletic and Convocation Center,Kent,OH,Kent State,MAC,"6,327",1950
+,Millett Hall,Oxford,OH,Miami (Ohio),MAC,"6,400",1968
+,Convocation Center,DeKalb,IL,Northern Illinois,MAC,"10,000",2002
+,Convocation Center,Athens,OH,Ohio,MAC,"13,080",1968
+,Savage Arena,Toledo,OH,Toledo,MAC,"7,300",1976
+,University Arena,Kalamazoo,MI,Western Michigan,MAC,"5,421",1957
+,Physical Education Complex,Baltimore,MD,Coppin State,MEAC,"4,100",2009
+,Memorial Hall,Dover,DE,Delaware State,MEAC,"3,000",1982
+,Burr Gymnasium,Washington,DC,Howard,MEAC,"2,700",1963
+,Hytche Athletic Center,Princess Anne,MD,Maryland Eastern Shore,MEAC,"5,500",1999
+,Talmadge L. Hill Field House,Baltimore,MD,Morgan State,MEAC,"4,250",1975
+,Joseph G. Echols Memorial Hall,Norfolk,VA,Norfolk State,MEAC,"4,500",1982
+,McDougald–McLendon Arena,Durham,NC,North Carolina Central,MEAC,"3,056",1955
+,SHM Memorial Center,Orangeburg,SC,South Carolina State,MEAC,"3,200",1968
+,Curb Event Center,Nashville,TN,Belmont,Missouri Valley,"5,085",2003
+,Carver Arena,Peoria,IL,Bradley men,Missouri Valley,"11,164",1982
+,Renaissance Coliseum,Peoria,IL,Bradley women,Missouri Valley,"4,200",2010
+,Knapp Center,Des Moines,IA,Drake,Missouri Valley,"6,424",1992
+,Ford Center,Evansville,IN,Evansville men,Missouri Valley,"10,000",2011
+,Meeks Family Fieldhouse at Carson Center,Evansville,IN,Evansville women,Missouri Valley,"1,087",1962
+,CEFCU Arena,Normal,IL,Illinois State,Missouri Valley,"10,200",1989
+,Hulman Center,Terre Haute,IN,Indiana State,Missouri Valley,"10,200",1973
+,Great Southern Bank Arena,Springfield,MO,Missouri State,Missouri Valley,"11,000",2008
+,CFSB Center,Murray,KY,Murray State,Missouri Valley,"8,602",1998
+,McLeod Center,Cedar Falls,IA,Northern Iowa,Missouri Valley,"7,018",2006
+,Banterra Center,Carbondale,IL,Southern Illinois,Missouri Valley,"8,339",1964
+,Credit Union 1 Arena,Chicago,IL,UIC,Missouri Valley,"6,958",1982
+,Athletics–Recreation Center,Valparaiso,IN,Valparaiso,Missouri Valley,"5,000",1984
+,Cadet Field House,Colorado Springs,CO,Air Force,Mountain West,"5,858",1968
+,ExtraMile Arena,Boise,ID,Boise State,Mountain West,"12,480",1982
+,Moby Arena,Fort Collins,CO,Colorado State,Mountain West,"8,745",1966
+,Save Mart Center,Fresno,CA,Fresno State,Mountain West,"15,544",2003
+,Lawlor Events Center,Reno,NV,Nevada,Mountain West,"11,536",1983
+,The Pit,Albuquerque,NM,New Mexico,Mountain West,"15,411",1966
+,Viejas Arena,San Diego,CA,San Diego State,Mountain West,"12,414",1997
+,Provident Credit Union Event Center,San Jose,CA,San Jose State,Mountain West,"5,000",1989
+,Thomas & Mack Center,Paradise,NV,UNLV men,Mountain West,"18,776",1983
+,Cox Pavilion,Paradise,NV,UNLV women,Mountain West,"2,500",2001
+,Smith Spectrum,Logan,UT,Utah State,Mountain West,"10,270",1968
+,Arena-Auditorium,Laramie,WY,Wyoming,Mountain West,"15,028",1982
+,William H. Detrick Gymnasium,New Britain,CT,Central Connecticut,Northeast,"2,654",1965
+,Rothman Center,Hackensack,NJ,Fairleigh Dickinson,Northeast,"5,000",1987
+,Ted Grant Court,Syracuse,NY,Le Moyne,NEC,"2,300",1961
+,Steinberg Wellness Center,Brooklyn,NY,LIU,Northeast,"2,500",2006
+,Hammel Court,North Andover,MA,Merrimack,Northeast oil,"1,200",1972
+,William H. Pitt Center,Fairfield,CT,Sacred Heart,Northeast,"2,062",1997
+,DeGol Arena,Loretto,PA,Saint Francis (PA),Northeast,"3,500",1972
+,Merkert Gymnasium,Easton,MA,Stonehill,Northeast,"1,560",1973
+,Spiro Sports Center,Staten Island,NY,Wagner,Northeast,"2,100",1999
+,Lantz Arena,Charleston,IL,Eastern Illinois,Ohio Valley,"5,300",1967
+,Robert F. Hyland Performance Arena,St. Charles,MO,Lindenwood,Ohio Valley,"3,270",1997
+,Jack Stephens Center,Little Rock,AR,Little Rock,Ohio Valley,"5,600",2005
+,Ellis Johnson Arena,Morehead,KY,Morehead State,Ohio Valley,"6,500",1981
+,Show Me Center,Cape Girardeau,MO,Southeast Missouri State,Ohio Valley,"6,972",1987
+,Vadalabene Center,Edwardsville,IL,SIU Edwardsville,Ohio Valley,"4,000",1984
+,Screaming Eagles Arena,Evansville,IN,Southern Indiana,Ohio Valley,"4,800",2019
+,Kathleen and Tom Elam Center,Martin,TN,Tennessee-Martin,Ohio Valley,"5,000",1969
+,Gentry Complex,Nashville,TN,Tennessee State,Ohio Valley,"10,500",1980
+,Eblen Center,Cookeville,TN,Tennessee Tech,Ohio Valley,"9,282",1977
+,McKale Center,Tucson,AZ,Arizona,Pac-12,"14,644",1973
+,Desert Financial Arena,Tempe,AZ,Arizona State,Pac-12,"14,100",1974
+,Haas Pavilion,Berkeley,CA,California,Pac-12,"11,877",1933
+,CU Events Center,Boulder,CO,Colorado,Pac-12,"11,064",1979
+,Matthew Knight Arena,Eugene,OR,Oregon,Pac-12,"12,369",2011
+,Gill Coliseum,Corvallis,OR,Oregon State,Pac-12,"9,604",1949
+,Maples Pavilion,Stanford,CA,Stanford,Pac-12,"7,329",1969
+,Pauley Pavilion,Los Angeles,CA,UCLA,Pac-12,"13,800",1965
+,Galen Center,Los Angeles,CA,USC,Pac-12,"10,258",2006
+,Jon M. Huntsman Center,Salt Lake City,UT,Utah,Pac-12,"15,000",1969
+,Alaska Airlines Arena at Hec Edmundson Pavilion,Seattle,WA,Washington,Pac-12,"10,000",1927
+,Beasley Coliseum,Pullman,WA,Washington State,Pac-12,"11,671",1973
+,Bender Arena,Washington,DC,American,Patriot,"4,500",1988
+,Christl Arena,West Point,NY,Army,Patriot,"5,043",1985
+,Case Gym,Boston,MA,Boston University,Patriot,"1,800",1972
+,Sojka Pavilion,Lewisburg,PA,Bucknell,Patriot,"4,000",2003
+,Cotterell Court,Hamilton,NY,Colgate,Patriot,"1,750",1959
+,Hart Center,Worcester,MA,Holy Cross,Patriot,"3,600",1975
+,Kirby Sports Center,Easton,PA,Lafayette,Patriot,"3,500",1973
+,Stabler Arena,Bethlehem,PA,Lehigh,Patriot,"6,000",1979
+,Reitz Arena,Baltimore,MD,Loyola (Maryland),Patriot,"3,000",1984
+,Alumni Hall,Annapolis,MD,Navy,Patriot,"5,710",1991
+,Coleman Coliseum,Tuscaloosa,AL,Alabama,SEC,"15,383",1968
+,Bud Walton Arena,Fayetteville,AR,Arkansas,SEC,"19,368",1993
+,Neville Arena,Auburn,AL,Auburn,SEC,"9,121",2010
+,O'Connell Center,Gainesville,FL,Florida,SEC,"10,500",1980
+,Stegeman Coliseum,Athens,GA,Georgia,SEC,"10,523",1964
+,Rupp Arena,Lexington,KY,Kentucky men,SEC,"20,545",1976
+,Memorial Coliseum,Lexington,KY,Kentucky women,SEC,"8,000",1950
+,Pete Maravich Assembly Center,Baton Rouge,LA,LSU,SEC,"13,215",1972
+,The Sandy and John Black Pavilion at Ole Miss,Oxford,MS,Ole Miss,SEC,"9,500",2016
+,Humphrey Coliseum,Starkville,MS,Mississippi State,SEC,"10,575",1975
+,Mizzou Arena,Columbia,MO,Missouri,SEC,"15,061",2004
+,Colonial Life Arena,Columbia,SC,South Carolina,SEC,"18,000",2002
+,Thompson–Boling Arena,Knoxville,TN,Tennessee,SEC,"21,678",1987
+,Reed Arena,College Station,TX,Texas A&M,SEC,"12,989",1998
+,Memorial Gymnasium,Nashville,TN,Vanderbilt,SEC,"14,316",1952
+,McKenzie Arena,Chattanooga,TN,Chattanooga,Southern,"10,928",1982
+,McAlister Field House,Charleston,SC,The Citadel,Southern,"6,000",1939
+,Freedom Hall Civic Center,Johnson City,TN,East Tennessee State,Southern,"6,149",1974
+,Timmons Arena,Greenville,SC,Furman,Southern,"4,000",1998
+,Hawkins Arena,Macon,GA,Mercer,Southern,"3,500",2004
+,Pete Hanna Center,Homewood,AL,Samford,Southern,"4,974",2007
+,Greensboro Coliseum,Greensboro,NC,UNC Greensboro,Southern,"7,613",1959
+,Cameron Hall,Lexington,VA,VMI,Southern,"5,800",1981
+,Ramsey Center,Cullowhee,NC,Western Carolina,Southern,"7,826",1986
+,Jerry Richardson Indoor Stadium,Spartanburg,SC,Wofford,Southern,"3,400",2017
+,Sharp Gymnasium,Houston,TX,Houston Christian,Southland,"1,000",1963
+,McDermott Center,San Antonio,TX,Incarnate Word,Southland,"2,000",1989
+,Montagne Center,Beaumont,TX,Lamar,Southland,"10,746",1984
+,The Legacy Center,Lake Charles,LA,McNeese,Southland,"4,200",2018
+,Lakefront Arena,New Orleans,LA,New Orleans,Southland,"8,933",1983
+,Stopher Gymnasium,Thibodaux,LA,Nicholls,Southland,"3,800",1967
+,Prather Coliseum,Natchitoches,LA,Northwestern State,Southland,"3,400",1964
+,University Center,Hammond,LA,Southeastern Louisiana,Southland,"7,500",1982
+,Texas A&M–Commerce Field House,Commerce,TX,Texas A&M–Commerce,Southland,"3,055",1950
+,American Bank Center Arena,Corpus Christi,TX,Texas A&M-Corpus Christi,Southland,"8,000",2004
+,Magness Arena,Denver,CO,Denver,Summit,"7,200",1999
+,Swinney Recreation Center,Kansas City,MO,Kansas City,Summit,"1,500",1941
+,Betty Engelstad Sioux Center,Grand Forks,ND,North Dakota,Summit,"3,300",2004
+,Scheels Center,Fargo,ND,North Dakota State,Summit,"5,700",2016
+,Baxter Arena,Omaha,NE,Omaha,Summit,"7,500",2015
+,Mabee Center,Tulsa,OK,Oral Roberts,Summit,"10,554",1972
+,Schoenecker Arena,Saint Paul,MN,St. Thomas,Summit,"1,800",2010
+,Sanford Coyote Sports Center,Vermillion,SD,South Dakota,Summit,"6,000",2016
+,Frost Arena,Brookings,SD,South Dakota State,Summit,"6,500",1973
+,Western Hall,Macomb,IL,Western Illinois,Summit,"5,139",1964
+,George M. Holmes Convocation Center,Boone,NC,Appalachian State,Sun Belt,"8,325",2000
+,First National Bank Arena,Jonesboro,AR,Arkansas State,Sun Belt,"10,563",1987
+,HTC Center,Conway,SC,Coastal Carolina,Sun Belt,"3,600",2012
+,Hanner Fieldhouse,Statesboro,GA,Georgia Southern,Sun Belt,"4,325",1969
+,Georgia State Convocation Center,Atlanta,GA,Georgia State,Sun Belt,"7,300",2022
+,Atlantic Union Bank Center,Harrisonburg,VA,James Madison,Sun Belt,"8,500",2020
+,Cajundome,Lafayette,LA,Louisiana,Sun Belt,"13,500",1985
+,Fant–Ewing Coliseum,Monroe,LA,Louisiana–Monroe,Sun Belt,"7,085",1971
+,Cam Henderson Center,Huntington,WV,Marshall,Sun Belt,"9,048",1981
+,Chartway Arena,Norfolk,VA,Old Dominion,Sun Belt,"8,472",2002
+,Mitchell Center,Mobile,AL,South Alabama,Sun Belt,"10,041",1998
+,Reed Green Coliseum,Hattiesburg,MS,Southern Miss,Sun Belt,"8,095",1965
+,Strahan Arena,San Marcos,TX,Texas State,Sun Belt,"10,000",1982
+,Trojan Arena,Troy,AL,Troy,Sun Belt,"5,200",2012
+,Alabama A&M Events Center,Normal,AL,Alabama A&M,SWAC,"6,000",2022
+,Dunn–Oliver Acadome,Montgomery,AL,Alabama State,SWAC,"7,400",1992
+,Davey Whitney Complex,Lorman,MS,Alcorn State,SWAC,"7,000",1975
+,K. L. Johnson Complex,Pine Bluff,AR,Arkansas-Pine Bluff,SWAC,"4,500",1982
+,Moore Gymnasium,Daytona,FL,Bethune-Cookman,SWAC,"3,000",1953
+,Al Lawson Center,Tallahassee,FL,Florida A&M,SWAC,"9,639",2009
+,Fredrick C. Hobdy Assembly Center,Grambling,LA,Grambling,SWAC,"7,500",2007
+,Williams Assembly Center,Jackson,MS,Jackson State,SWAC,"8,000",1981
+,Harrison HPER Complex,Itta Bena,MS,Mississippi Valley State,SWAC,"5,000",1970
+,William J. Nicks Building,Prairie View,TX,Prairie View A&M,SWAC,"6,500",1968
+,F. G. Clark Center,Baton Rouge,LA,Southern,SWAC,"7,500",1975
+,Health and Physical Education Arena,Houston,TX,Texas Southern,SWAC,"8,100",1989
+,McCarthey Athletic Center,Spokane,WA,Gonzaga,West Coast,"6,000",2004
+,Gersten Pavilion,Los Angeles,CA,Loyola Marymount,West Coast,"4,156",1981
+,Alex G. Spanos Center,Stockton,CA,Pacific,West Coast,"6,150",1981
+,Firestone Fieldhouse,Malibu,CA,Pepperdine,West Coast,"3,104",1973
+,Chiles Center,Portland,OR,Portland,West Coast,"4,852",1984
+,University Credit Union Pavilion,Moraga,CA,Saint Mary's,West Coast,"3,500",1978
+,Jenny Craig Pavilion,San Diego,CA,San Diego,West Coast,"5,100",2000
+,The Sobrato Center,San Francisco,CA,San Francisco,West Coast,"5,300",1958
+,Leavey Center,Santa Clara,CA,Santa Clara,West Coast,"4,500",1975
+,Moody Coliseum,Abilene,TX,Abilene Christian,WAC,"4,600",1968
+,CBU Events Center,Riverside,CA,California Baptist,WAC,"5,050",2017
+,Burns Arena,St. George,UT,Utah Tech,WAC,"4,779",1986
+,GCU Arena,Phoenix,AZ,Grand Canyon,WAC,"7,000",2011
+,Redhawk Center,Seattle,WA,Seattle,WAC,999,1959
+,America First Event Center,Cedar City,UT,Southern Utah,WAC,"5,300",1985
+,William R. Johnson Coliseum,Nacogdoches,TX,Stephen F. Austin,WAC,"7,203",1974
+,Wisdom Gymnasium,Stephenville,TX,Tarleton,WAC,"3,000",1970
+,UCCU Center,Orem,UT,Utah Valley,WAC,"8,500",1996
+,College Park Center,Arlington,TX,UT Arlington,WAC,"7,000",2012
+,UTRGV Fieldhouse,Edinburg,TX,UTRGV,WAC,"2,500",1969
