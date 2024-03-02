@@ -1,0 +1,114 @@
+---
+title: "STA 610 LAB 5"
+author: William Tirone
+date: '9/28/2023'
+format: pdf
+editor: 
+  markdown: 
+    wrap: 72
+---
+
+```{r, include=FALSE}
+library(tidyverse)
+library(influence.ME)
+library(GGally)
+df = read.table('data', col.names = c('ID', 'treatment_group', 'week0', 'week1', 
+               'week4', 'week6'))
+```
+
+# Q1)
+
+```{r}
+df_long = df |> 
+          pivot_longer(cols = !c('ID', 'treatment_group'), 
+                       names_to = 'wk',
+                       values_to = 'lead') |> 
+  mutate(wk = parse_number(wk))
+```
+
+# Q2)
+
+Generating some plots here:
+
+```{r warning=FALSE}
+df_long |> 
+  ggplot(aes(y=lead, x=wk, color=treatment_group)) +
+  geom_point(aes(group = ID)) + 
+  geom_line(aes(group = ID)) + 
+  geom_smooth(method = 'loess') +
+  facet_wrap(~treatment_group)
+```
+
+# Q3)
+
+Here, we visualize the structure across time with both treatment groups, and then each group individually. Interestingly, the placebo group has very high correlation across time.
+
+```{r}
+
+# using wide 
+ggpairs(df[, -c(1,2)], progress=FALSE) # comparing the weeks 
+ggpairs((df |> filter(treatment_group == 'A'))[, -c(1,2)], progress=FALSE)
+ggpairs((df |> filter(treatment_group == 'P'))[, -c(1,2)], progress=FALSE)
+
+```
+
+# Q4)
+
+Here, we fit the model and perform an ANOVA test.
+
+```{r}
+df_long = df_long |> 
+  mutate(wk = as.factor(wk))
+
+m1 = lm(lead ~ treatment_group * wk, data=df_long)
+anova(m1)
+
+```
+
+# Q5)
+
+want to introduce dependency in the group, ID. Measurements are correlated across time for a single individual.
+
+Based on our analysis, we are interested in the coefficients of the interaction terms.
+
+i)  We choose the fixed and random effects based on what we think varies across group.
+ii) Since we think lead levels are correlated for a single individual across time, we choose ID as a random effect.
+iii) yes, it seems like the treatment has an effect.
+
+```{r}
+m2 = lmer(lead ~ treatment_group*wk + (1 | ID), data=df_long)
+summary(m2)
+```
+
+# Q6)
+
+Here, I have just used `Influence.ME::influence()` to combute the dfbetas. Then to 
+select them, we have $2/\sqrt n = 0.2$ as a rule of thumb, and I checked if each variable 
+was outside of that range. At the end, I output the specific ID's of the potentially 
+influential points. I did this just using dataframes since looking at plots was not 
+as easy with 100 observations. 
+
+```{r}
+m2.inf = influence(m2, "ID")
+print(2/sqrt(length(unique(df_long$ID)))) # our cutoff 
+```
+
+```{r}
+betas = data.frame(round(dfbetas(m2.inf), 4)) |> 
+  mutate(ID = 1:100)
+
+bind_rows(
+betas |> filter(!between(X.Intercept., -0.2, 0.2)),
+betas |> filter(!between(treatment_groupP, -0.2, 0.2)),
+betas |> filter(!between(wk1, -0.2, 0.2)),
+betas |> filter(!between(wk4, -0.2, 0.2)),
+betas |> filter(!between(wk6, -0.2, 0.2)),
+betas |> filter(!between(treatment_groupP.wk1, -0.2, 0.2)),
+betas |> filter(!between(treatment_groupP.wk4, -0.2, 0.2)),
+betas |> filter(!between(treatment_groupP.wk6, -0.2, 0.2))) |> 
+  distinct(ID) |> 
+  pull()
+```
+
+
+

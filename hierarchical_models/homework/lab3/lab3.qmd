@@ -1,0 +1,128 @@
+---
+title: "STA 610 LAB 3"
+author: William Tirone
+date: '9/6/2023'
+format: pdf
+editor: 
+  markdown: 
+    wrap: 72
+---
+
+```{r, include=FALSE}
+library(tidyverse)
+library(lme4)
+library(merTools)
+library(lattice)
+library(lmtest)
+load('../data/hc2014.RData')
+```
+
+# EDA
+
+First, we notice that there are some null values that present issues with fitting the model, 
+so we remove them. In adddition, after plotting a density of the net income, we 
+see a very large range of values, so I chose to scale them. We can't take the log 
+because there are some negative net income values.
+
+
+
+```{r}
+hc2014 = hc2014 |> 
+  drop_na() |> 
+  mutate(scaled_income = scale(netincome))
+
+agg = hc2014 |> 
+  group_by(control) |> 
+  summarise(total_beds = sum(numbeds)) |>
+  arrange(desc(total_beds))
+
+agg[0:10,]
+```
+
+
+We see a very sharp spike at 0, but also some pretty large outliers.
+
+```{r}
+ggplot(hc2014, aes(scaled_income)) +
+  geom_density(aes(y=..density..),color="black",linetype="dashed") + 
+  theme(legend.position="none") +
+  geom_density(alpha=.25, fill="navy") +
+  labs(title="Scaled Income of Hospitals in the U.S.",y="net profit") + 
+  theme_classic()
+```
+Below, it looks like with a random sample of states, we have a pretty significant
+spread among them. New York has some hospitals with pretty large negative 
+scaled profits and Texas has some with very positive values.
+
+```{r}
+set.seed(1000)
+sample_state <- sample(unique(hc2014$state),15,replace=F)
+ggplot(hc2014[is.element(hc2014$state, sample_state),],
+       aes(x=state, y=scaled_income)) +
+  geom_boxplot() +
+  labs(title="Scaled income by state",
+       x="state",y="scaled income") + theme_classic() + 
+  theme(legend.position="none",axis.text.x = element_text(angle = 90))
+```
+And considering control, there's large variability in the `Nonprofit-church` 
+ownership. It's interesting that `Nonprofit-other` has the largest number of 
+beds by far, but they have much less variability.
+
+```{r}
+ggplot(hc2014,
+       aes(x=control, y=scaled_income)) +
+  geom_boxplot() +
+  labs(title="Scaled income by state",
+       x="state",y="scaled income") + theme_classic() + 
+  theme(legend.position="none",axis.text.x = element_text(angle = 90))
+```
+# Modeling
+
+Our final model will be : 
+
+$$
+y_{ij} = \mu_0 + \alpha_j + \beta_1 * \text{num beds} + \beta_2 * \text{control} + \epsilon_{ij}
+$$
+
+We will fit 2 models and compare them, a standard linear regression and a model
+with a random effect.
+
+Neither of the random slope models we tried to fit in lab converged or would run. In particular: 
+
+`model3 = lmer(netincome ~ numbeds +  control + (1 + control | state), data=hc2014)`
+
+`model3 = lmer(netincome ~ numbeds +  control + (numbeds + control | state), data=hc2014)`
+
+
+```{r}
+model1 = lm(scaled_income ~ numbeds + control, data=hc2014) # standard 
+model2 = lmer(netincome ~ numbeds + control +  (1 |state), data=hc2014) # random effect 
+lrtest(model2, model1)
+```
+
+Because we observe a p-value < 0.05, we will reject the null hypothesis that 
+both models fit the data equally well. Thus, we conclude that we want to keep 
+the model with the random effect rather than the simple linear model.
+
+Now, we can look at the fixed effects coefficients with their respective 
+standard errors: 
+
+```{r}
+coef(summary(model2))
+```
+
+And we can view the random intercept and each intercept's respective uncertainty
+(that is, if I'm understanding this plot correctly).
+
+```{r}
+dotplot(ranef(model2, condVar=TRUE))
+```
+# Model Assessment
+
+As a quick check, our residuals don't show any obvious patterns.
+
+```{r}
+plot(model2)
+```
+
+

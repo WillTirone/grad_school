@@ -1,0 +1,119 @@
+---
+ cmdstanr::install_cmdstan()---
+title: "STA 610 HW 1"
+author: William Tirone
+date: '9/15/23'
+format: pdf
+editor: 
+  markdown: 
+    wrap: 72
+---
+
+```{r, include=FALSE}
+library(tidyverse)
+library(car)
+load('gotscreen.RData')
+gotscreen$Season = as.character(gotscreen$Season)
+```
+
+# Question 1 (Game of Thrones)
+
+## EDA
+
+Initially, just considering the quantiles below with respect to gender, it seems like there is a pretty obvious difference in the screentimes between `Male`, `Female`, and `Unspecified`.
+
+```{r}
+tapply(gotscreen$seccount, gotscreen$Gender, summary)
+```
+
+Now finding the total screen time for all actors of a given gender, `Male` screentime far exceeds `Female` and `Unspecified`.
+
+```{r}
+gotscreen |> 
+  group_by(Gender) |>
+  summarise(total = sum(seccount))
+```
+
+And a quick plot shows that all of the maximum seconds on screen for each season are male. In fact, it looks like in seasons 1, 2, and 3, the maximum number of seconds on screen for women doesn't even exceed the minimum number of seconds on screen for men. It's also interesting that `Gender ==  Unspecified` is the minimum for every category. This seems like a significant omission since it represents a large chunk of the data.
+
+The male screen time also looks a bit more variable than Female, with big changes between Season 1 & 2 then again from Season 4 to 7.
+
+```{r}
+ggplot(gotscreen, aes(x=Season, y=seccount, group=Season)) + 
+    geom_boxplot(aes(fill=Season)) + 
+    facet_grid(Gender ~ .)
+```
+
+## Modeling and Model Fit
+
+For data point $i$ and gender $j$ and season $k$ we can write: $$
+y_{ijk} = \mu + \alpha I(j = 1) + \beta I(k=1)  + ... + \beta I(k=6) + \gamma_{jk} + \epsilon_{ijk}
+$$
+
+I'm not positive how to write the interaction effect cleanly with indicators so I have left it as a general term.
+
+```{r}
+anova_interaction = aov(seccount ~ Gender * Season, data=gotscreen)
+```
+
+Assumptions:
+
+1\. Independence of data:
+
+-   It seems very unlikely that the data would be independent. If a character is popular in one season, they would be much more likely to have more minutes in the next season.
+
+2\. Normally-distributed residuals
+
+-   Condition not met, as we will see below.
+
+3\. Homoscedasticity
+
+-   Also not met, as discussed below.
+
+Considering the plots below, while the residuals have a (somewhat) normal-looking distribution with a heavy right tail, the Q-Q plot shows much higher values on the right tail that offers strong evidence that the errors are not actually normal.
+
+Additionally, the Q-Q and Residuals vs Fitted plots show that observations 2, 200, and 191 are significant outliers which affect the normality and homogeneity of variance.
+
+```{r}
+plot(anova_interaction, 1)
+plot(density(residuals(anova_interaction)), xlab="Residual", main="", col=c("blue"))
+plot(anova_interaction, which=2, col=c("blue"))
+```
+
+I also found (in a tutorial on two-way ANOVA: http://www.sthda.com/english/wiki/two-way-anova-test-in-r) the Levene test which checks for homoscedasticity. With a very small p-value in the table below, this confirms that the equal variance condition is probably not met.
+
+I also found the Shapiro-Wilk test which checks the normality of residuals. Again, with a very small p-value, this confirms our suspicions from visually inspecting the diagnostic plots that the residuals are not normally distributed.
+
+```{r}
+# check variances 
+leveneTest(seccount ~ Gender * Season, data = gotscreen)
+
+# check residuals 
+aov_residuals = residuals(anova_interaction)
+shapiro.test(x = aov_residuals )
+```
+
+## Parameter Estimates
+
+Below is a table including the estimates of each parameter along with their respective confidence intervals.
+
+```{r}
+cbind(data.frame(anova_interaction$coefficients), confint(anova_interaction))
+```
+
+## Conclusion
+
+Last, we can look at the F-tests associated with the fit. These correspond to the hypothesis test:
+
+$$
+H_0 = \text{all mean screen time across gender and season are the same}\\
+H_A = \text{at least two of these are not equal}
+$$
+
+They all reach statistical significance with very small p-values, so we conclude that the means across gender and season are not equal. While these are convincing statistics, we have to keep in mind that the assumptions of the model were broken, so these may not be accurate results.
+
+However, because the results from simply looking at the plots of the data agree with the test results, we could probably safely reject the null hypothesis that the means across gender and season are the same. Note, though, that this doesn't tell us which combinations are different, just that they are. To find those, we would have to conduct more testing.
+
+```{r}
+summary(anova_interaction)
+```

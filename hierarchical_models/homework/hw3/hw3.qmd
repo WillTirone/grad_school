@@ -1,0 +1,526 @@
+---
+title: "hw3"
+author: "Will Tirone"
+format: pdf
+editor: 
+  markdown: 
+    wrap: 72
+---
+
+```{r include=FALSE}
+library(tidyverse)
+library(MASS)
+library(kableExtra)
+library(nnet) 
+library(lmtest)
+library(VGAM)
+library(lmtest)
+```
+
+# Q1)
+
+## Load Data
+
+First we load the data and extract things like the numeric
+representation of the day of the week and the month that we will use as
+covariates later.
+
+```{r}
+#| label: load 
+
+brook = read.csv('data/Brooklyn-count.csv') |> 
+  mutate(Date = dmy(Date), 
+         num_day = as.factor(wday(Date)), 
+         day = wday(Date, label=TRUE),
+         dom = day(Date), 
+         num_month = as.factor(month(Date)), 
+         month = month(Date, label=TRUE))
+
+eye = read.csv('data/eyewitness.csv') |> 
+  mutate(Y0 = as.numeric(id == 'correct'),
+         Y1 = as.numeric(id == 'foil'),
+         Y2 = as.numeric(id == 'reject'))
+```
+
+## EDA
+
+First, we'll take a look at the temperatures and size them by the count
+of cyclists. At low LOW_T and HIGH_T, we see fewer cyclists as expected.
+We can also see that at a given LOW_T, a higher HIGH_T results in more
+cyclists.
+
+There is not an obvious time trend from April to October since the mean
+looks relatively constant. However, there is strong seasonality among
+the days and weeks of the months.
+
+And just visually it looks like April has the widest ranges of biker
+count across different days.
+
+```{r}
+#| label: dot 
+
+ brook |> 
+  ggplot() +
+  geom_point(aes(x=HIGH_T, y=LOW_T,
+                 size = BB_COUNT, 
+                 color=BB_COUNT))
+
+brook |> 
+  ggplot(aes(x = Date, y = BB_COUNT)) + 
+  geom_line()
+
+
+brook |> 
+  ggplot() + 
+  geom_boxplot(aes(x = day, y = BB_COUNT, fill = month))
+```
+
+## Modeling
+
+### Poisson
+
+First, we'll fit the poisson model. We compare the null model against a
+model with every covariate, and since we only have a handful of
+covariates we'll use them all in the model. Here we're basing our model
+selection on deviance. However, we won't spend too much time fine-tuning
+our Poisson model since we're going to throw it out anyway based on the
+poor fit (that I've looked ahead and seen based on the mean-variance
+relationship).
+
+We see that the extra covariates provide a better fit than the null
+model, so we will proceed with `pois_mod2`.
+
+```{r}
+
+# null model 
+pois_mod = glm(BB_COUNT ~ 1, 
+               family="poisson", 
+               data = brook)
+
+# lowers deviance, improvement 
+pois_mod2 = glm(BB_COUNT ~ HIGH_T + LOW_T + PRECIP + num_day + num_month, 
+               family="poisson", 
+               data = brook)
+
+anova(pois_mod, pois_mod2)
+```
+
+#### Poisson Model Interpretation
+
+Note that our final model is `pois_mod2`.
+
+The point estimates, SE's, and intervals for the model are presented
+here:
+
+```{r}
+coefs = cbind(Estimate = coef(pois_mod2),
+              SE = sqrt(diag(vcov(pois_mod2))), 
+              confint(pois_mod2))
+
+coefs |> kable()
+```
+
+For interpretation, we exponentiate the coefficients. Note that we have
+`num_day1` and `num_month4` as reference groups which correspond to
+Sunday and April respectively. Now, we can say the following:
+
+1.  $exp\{\hat{\beta}_{HIGH\_T}\} :$ A one unit increase in the high
+    temp results in an expected multiplicative increase of rider count
+    of 1.025 (and a similar interpretation for LOW_T and PRECIP). So
+    precipitation and lower temperatures negatively affect rider counts,
+    as expected.
+
+2.  $exp\{\hat{\beta}_{num\_day2}\} :$ With Sunday (`num_day1`) as the
+    baseline,we say that on Monday (`num_day2`), on average we expect a
+    ridership increase of 1.12 times compared to Sunday. The same
+    reasoning applies for the rest of the days.
+
+3.  $exp\{\hat{\beta}_{num\_month5}\} :$ Similar reasoning applies
+    again, but with April (`num_month4`) as the baseline. Thus, in May
+    (`num_month5`), we expect to see an increase vs. April of 1.095
+    times as many riders. The same holds for the rest of the months.
+
+4.  $exp\{\hat{\beta}_0\}:$ The intercept represents the expected rider
+    counts on Sunday in April with an expected high and low of 0 and no
+    precipitation.
+
+```{r}
+exp(coefs) |> kable() 
+```
+
+#### Poisson Model Assessment
+
+If the Poisson model fits well, we should have:
+
+$$
+\frac{D(y,\hat{\mu})}{n - p} \approx \frac{\chi^2}{n-p} \approx 1
+$$
+
+And since our example has values of about 130, the model does not fit
+well.
+
+Additionally, we can visualize these residuals and fit a smooth curve.
+If the line is relatively straight around 1, we'll say the model fits
+well. However, as seen in the plot below, the model fits somewhat well
+for large fitted values, but we have huge residuals at smaller fitted
+values, so we'll conclude that the Poisson model fits poorly.
+
+```{r}
+
+sq_pearson_resid = residuals(pois_mod2, type = 'pearson')^2
+resid_df = data.frame(resid = sq_pearson_resid, 
+                      fitted = pois_mod2$fitted.values)
+
+# plotting 
+resid_df |> 
+  ggplot(aes(x=fitted, y=resid)) + 
+  geom_point() + 
+  geom_smooth(method = "loess", se = FALSE) + 
+  geom_hline(yintercept = 1) + 
+  labs(
+    title = "Poisson Model Assessment", 
+    x = "Fitted Values",
+    y = "Squared Pearson Residuals"
+  )
+
+```
+
+```{r}
+# should be close to 1
+pois_mod2$deviance / pois_mod2$df.residual 
+# should be close to 1
+sum(sq_pearson_resid) / pois_mod2$df.residual
+```
+
+### Negative Binomial
+
+Here we fit the model using the exact same covariates, but using a
+Negative Binomial distribution on the outcome counts instead of a
+Poisson to try to fix the overdispersion issue.
+
+Note that the final model is `nbin_m1`
+
+```{r}
+nbin_m1 = glm.nb(BB_COUNT ~ HIGH_T + LOW_T + PRECIP + num_day + num_month, 
+               data = brook)
+```
+
+#### Negative Binomial Model Assessment
+
+Using a likelihood ratio test, we reject the null that the more complex
+model (Negative Binomial) doesn't offer improvement over the null model
+(the Poisson Model). Additionally, we fit the same plot we did earlier
+with a smooth curve and notice that the errors are smaller, though the
+model still does not fit perfectly.
+
+```{r}
+# LRT 
+lmtest::lrtest(pois_mod2, nbin_m1)
+```
+
+```{r}
+sq_pearson_resid = residuals(nbin_m1, type = 'pearson')^2
+resid_df = data.frame(resid = sq_pearson_resid, 
+                      fitted = nbin_m1$fitted.values)
+
+# plotting 
+resid_df |> 
+  ggplot(aes(x=fitted, y=resid)) + 
+  geom_point() + 
+  geom_smooth(method = "loess", se = FALSE) + 
+  geom_hline(yintercept = 1) + 
+  labs(
+    title = "Poisson Model Assessment", 
+    x = "Fitted Values",
+    y = "Squared Pearson Residuals"
+  )
+
+```
+
+We have the same interpretation of the (exponentiated) coefficients here
+that we had in the Poisson model. Recall that we have `num_day1` and
+`num_month4` as reference groups which correspond to Sunday and April
+respectively.
+
+1.  $exp\{\hat{\beta}_{HIGH\_T}\} :$ A one unit increase in the high
+    temp results in an expected multiplicative increase of rider count
+    of 1.032 (and a similar interpretation for LOW_T and PRECIP). So
+    precipitation and lower temperatures negatively affect rider counts,
+    as expected. Though temperature and precipitation are on different
+    scales, so a one-unit increase in precipitation is a lot of rain
+    (probably in inches) while a unit increase in temperature is fairly
+    mild.
+
+2.  $exp\{\hat{\beta}_{num\_day2}\} :$ With Sunday (`num_day1`) as the
+    baseline,we say that on Monday (`num_day2`), on average we expect a
+    ridership increase of 1.102 times compared to Sunday. The same
+    reasoning applies for the rest of the day compared to Sunday as a
+    reference level.
+
+3.  $exp\{\hat{\beta}_{num\_month5}\} :$ Similar reasoning applies
+    again, but with April (`num_month4`) as the baseline. Thus, in May
+    (`num_month5`), we expect to see an increase vs. April of 1.095
+    times as many riders. The same holds for the rest of the months
+    compared to the April baseline.
+
+4.  $exp\{{\hat{\beta}_0}\} :$ The intercept represents the expected
+    rider counts on Sunday in April with an expected high and low of 0
+    and no precipitation.
+
+```{r}
+coefs = cbind(Estimate = coef(nbin_m1), 
+              SE = sqrt(diag(vcov(nbin_m1))), 
+              suppressMessages(confint(nbin_m1)))
+
+exp(coefs) |> kable()
+```
+
+## Limitations
+
+Since the Negative Binomial model still doesn't fit perfectly, we can
+try a quasi-Poisson model. Because we have overdispersion, the
+quasi-Poisson model fits better than the original poisson model. While
+the point estimates are identical, the quasi model has wider confidence
+intervals.
+
+We could probably reasonably choose either the NBIN model or
+quasi-poisson. Our analyses might be limited by lack of additional
+covariates that could help us fit better models, like air quality
+measures, whether or not there were events around the bridge that day,
+humidity measures, and other useful pieces of information.
+
+```{r}
+
+quasi_poisson = glm(BB_COUNT ~ HIGH_T + LOW_T + PRECIP + num_day+  num_month, 
+                    family="quasipoisson", 
+                    data = brook)
+
+pois_table = data.frame(cbind(std_estimate = coef(pois_mod2),
+                              SE = sqrt(diag(vcov(pois_mod2))), 
+                              suppressMessages(confint(pois_mod2))))
+
+quasi_table = data.frame(cbind(quasi_estimate = coef(quasi_poisson), 
+                               SE = sqrt(diag(vcov(quasi_poisson))), 
+                               suppressMessages(confint(quasi_poisson))))
+
+colnames(pois_table) = c("poisson_coef", "poisson_SE", "poisson_2.5%", 
+                         "poisson_97.5%")
+colnames(quasi_table) = c("quasi_coef","quasi_SE", "quasi_2.5%", "quasi_97.5%")
+
+pois_table |> kable()
+quasi_table |> kable()
+```
+
+# Q 2)
+
+## EDA
+
+From this plot we see that the most common mistake is that the
+participants selected the "foil", the person placed in the lineup to
+look like the correct perpetrator but was not. In fact, the only
+combination of covariates where the participants correctly identified
+the perpetrator was a simultaneous lineup, with a weapon, and no
+feature. Otherwise, it seems like a mix of correctly identifying the
+perpetrator and incorrectly concluding that the perpetrator was in the
+lineup at all, but primarily we see how often people chose the "foil".
+
+```{r}
+eye |> 
+  group_by(id, lineup, weapon, feature) |> 
+  count() |> 
+  mutate(prop = n / sum(n),
+         weapon = if_else(weapon == 'yes', 'weapon = yes', 'weapon = no'),
+         feature = if_else(feature == 'yes', 'feature = yes', 
+                           'feature = no')) |> 
+  ggplot(aes(x = id, y= n)) + 
+  geom_bar(stat = 'identity') + 
+  facet_wrap(vars(lineup, weapon, feature))
+
+```
+
+## Nominal Data : Multinomial Model
+
+Since we only have a few covariates, we'll use them all. In the nominal
+setting, we're ignoring any potential ordering of the outcome.
+
+First we'll set up some functions from the lecture notes that we'll use
+later.
+
+```{r}
+
+# Borrowing some code from the lecture on categorical data, we can use this 
+# to assess model fit.
+
+summ.MNfit <- function(fit, digits=3)
+{
+  s <- summary(fit)
+  for(i in 2:length(fit$lev))
+  {
+    ##
+    cat("\nLevel", fit$lev[i], "vs. Level", fit$lev[1], "\n")
+    ##
+    betaHat <- s$coefficients[(i-1),]
+    se <- s$standard.errors[(i-1),]
+    zStat <- betaHat / se
+    pval <- 2 * pnorm(abs(zStat), lower.tail=FALSE)
+    ##
+    RRR <- exp(betaHat)
+    RRR.lo <- exp(betaHat - qnorm(0.975)*se)
+    RRR.up <- exp(betaHat + qnorm(0.975)*se)
+    ##
+    results <- cbind(betaHat, se, pval, RRR, RRR.lo, RRR.up)
+    print(round(results, digits=digits))
+  }
+}
+
+lrtMN = function(fit1, fit2)
+  {
+  stat <- abs(deviance(fit1)-deviance(fit2))
+  residDF <- abs(fit1$edf-fit2$edf)
+  return(pchisq(stat, residDF, lower=FALSE))
+}
+
+```
+
+### Multinomial Model Assessment
+
+We can also check for interaction terms to see whether or not these help
+fit the data better. So here we just fit the standard additive model,
+then a model with a weapon:lineup interaction, and one with a
+feature:weapon interaction.
+
+```{r}
+
+# fit models 
+m1 = multinom(id ~ feature + weapon + lineup, data = eye)
+m2 = multinom(id ~ feature + weapon * lineup, data = eye)
+m3 = multinom(id ~ feature * weapon + lineup, data = eye)
+
+```
+
+We can do an LRT (using the functions from class) to see which models
+offer improvement over previous models. Based on the p-values, model 3
+with an interaction term for feature:weapon is our best model.
+
+```{r}
+lrtMN(m1, m2)
+lrtMN(m2, m3)
+```
+
+With a basic `summary()`, we see that we're essentially doing 2 separate
+regressions and tying them together with the multinomial distribution.
+The reference level here is `id == 'correct'`.
+
+```{r}
+summary(m3)
+```
+
+To more easily interpret the coefficients and fit of the model, we can
+output the summary table below.
+
+Note that I'm using the superscript of the outcome level to denote the
+coefficients below, so in the first table we have $\beta^{foil}$ and in
+the second, $\beta^{rej}$. And for all of these, the column `RRR`
+indicates the relative risk ratio for the given level to the baseline,
+so foil to correct and reject to correct.
+
+1.  $exp\{\hat{\beta}_{featureyes}^{foil}\} = 2.304$ : The risk of
+    identifying the foil instead of the correct perpetrator is 2.439x
+    higher if the suspect had an identifying feature.
+
+2.  $exp\{\hat{\beta}_{weaponyes}^{foil}\} = 0.960$ : The risk of
+    identifying the foil instead of the correct perpetrator is 0.96x if
+    the suspect had a weapon vs. not.
+
+3.  $exp\{\hat{\beta}_{0}^{foil}\} = 2.439$ : The risk of identifying
+    the foil instead of the correct perpetrator with no features, no
+    weapon, and a sequential 5 lineup is 2.439x.
+
+And the rest of the coefficients for the level foil vs. level correct
+can be interpreted the exact same way. The reject vs. correct
+coefficient are also interpreted this way, but now we're comparing the
+risk of rejecting that the perpetrator is in the lineup vs. correctly
+identifying. For example:
+
+1.  $exp\{\hat{\beta}_{featureyes}^{rej}\} = 1.734$ : The risk of
+    rejecting that the perpetrator was in the lineup instead of the
+    correctly identifying them is 1.734x higher if the suspect had an
+    identifying feature.
+
+2.  $exp\{\hat{\beta}_{lineupSim.}^{rej}\} = 0.768$ : The risk of
+    rejecting that the perpetrator was in the lineup instead of the
+    correctly identifying them is 0.768x if the lineup was presented
+    simulataneously instead of a sequential 5.
+
+I've only interpreted a handful of these coefficients, but again, the
+rest follow the same format.
+
+```{r}
+summ.MNfit(m3)
+```
+
+## Ordinal Data : Cumulative Model
+
+Now we'll treat the order of the data as having meaning. That is,
+correctly identifying the perpetrator \> identifying the foil \>
+rejecting that the perpetrator is in the lineup. The rationale is that,
+of course, being correct is the best outcome. Identifying the foil is
+worse, because it's still incorrect, but there is someone intentionally
+trying to trick the participants. And last, not identifying the
+perpetrator at all is the worst outcome. Note that our levels are
+`0 = correct, 1 = foil, 2 = reject`. It is maybe questionable whether or
+not "foil" is actually better than "reject", and would likely depend on
+domain-specific knowledge. In a real setting, the risk would be a higher
+chance of false imprisonment if a person was incorrectly identified,
+which we want to avoid.
+
+I chose the cumulative logit model because, as discussed in class, it is
+the most widely used and has a relatively straight forward
+interpretation. We will choose our final model as the interaction model,
+which is `id ~ feature * weapon + lineup`. This is the same as we chose
+previously, so we're using the same covariates so we can compare the
+two. Overall, though, it seems we could reasonably choose either the
+nominal or ordinal model.
+
+```{r}
+ord_model = vglm(cbind(Y0, Y1, Y2) ~ feature * weapon + lineup,
+                 cumulative(parallel=FALSE, reverse=FALSE), 
+                 data = eye)
+summary(ord_model)
+```
+
+As usual, we exponentiate the coefficients for easier interpretation:
+
+1.$exp\{\hat{\beta}^1_{0} \} = 0.314$ : The odds ratio of identifying
+the foil or correctly identifying the perpetrator for suspects with no
+identifying feature, no weapon, and in a simultaneous 5 lineup, is
+0.314.
+
+2.$exp\{\hat{\beta}^2_{0} \} = 4.671$ : The odds ratio of identifying
+the foil or correctly identifying the perpetrator, or incorrectly
+rejecting that the perpetrator was in the lineup for suspects with no
+identifying feature, no weapon, and in a simultaneous 5 lineup, is
+0.314.
+
+3.$exp\{\hat{\beta}_{featureyes:1} \} = 0.479$ : The odds ratio of
+identifying the foil or correctly identifying the perpetrator for
+suspects that had an identifying feature, with all other covariates held
+constant, is 0.479. This is also the cumulative odds ratio of levels 0
+and 1.
+
+4.$exp\{\hat{\beta}_{featureyes:2} \} = 1.019$ : The odds ratio of
+identifying the incorrect suspect or the foil or correctly identifying
+the perpetrator for suspects that had an identifying feature, with all
+other covariates held constant, is 1.019. This is also the cumulative
+odds ratio of levels 0, 1, and 2.
+
+The rest of the covariates follow a similar interpretation based on
+their level as well.
+
+```{r}
+coefs = cbind(Estimate = coef(ord_model), 
+              SE = sqrt(diag(vcov(ord_model))), 
+              suppressMessages(confint(ord_model)))
+
+exp(coefs) |> kable()
+```

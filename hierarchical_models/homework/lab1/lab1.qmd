@@ -1,0 +1,106 @@
+---
+title: "STA 610 LAB 1"
+author: William Tirone
+date: '9/6/2023'
+format: pdf
+editor: 
+  markdown: 
+    wrap: 72
+---
+
+```{r, include=FALSE}
+library(tidyverse)
+library(car)
+fly = read.csv('../data/fruitfly_thorax_len.csv')
+```
+
+# Ex. 1 : Create a visualization
+
+And interpreting, it looks like sexual activity and a long thorax leads
+to the longest life, while a shorter thorax leads to a much shorter life
+regardless sexual activity.
+
+```{r}
+ggplot(fly, aes(x=thorax, y=longevity, color=sexually_active)) + 
+    geom_point(size=6, alpha=0.6)
+```
+
+# Ex 2. : Two-way ANOVA
+
+Since we have the variables j, `sexually_active = ('No', 'Yes',)` for j
+= 1 or 2 and k `thorax = ('long','short')` for k = 1 or 2, we can
+consider:
+
+$$
+y_{ijk} = \mu + \alpha I(j=2) + \beta I(k=2) + \gamma I(j = k = 2) + \epsilon_{ijk}
+$$
+
+```{r}
+aov.fly = aov(longevity ~ sexually_active * thorax, data = fly)
+coef(summary.lm(aov.fly))
+```
+
+So now we can finish our model and say that:
+
+$$
+y_{ijk} = 71.29 - 24.17I(j=2) -  24.14I(k=2) + 6.6I(j = k = 2) + \epsilon_{ijk}
+$$
+
+And considering whether or not we have statistical significance for the
+coefficients:
+
+```{r}
+summary(aov.fly)
+```
+
+# Ex. 3
+
+To estimate fruitfly lifespan in days (longevity), we have considered
+two binary variables: sexual activity (yes or no), and thorax length
+(long or short). We also include a so-called "interaction effect" which
+indicates that sexual activity and thorax length interact with each
+other in a way not explained by either variable alone.
+
+Looking at our table above from example 2, we see that both sexual
+activity and thorax reach statistical significance on their own, but
+with a large p-value of 0.282, the interactive between the two does not
+have statistical significance. However, we also have to quantify
+uncertainty which we do using the output from our ANOVA model. These
+confidence interval can be viewed here:
+
+```{r}
+confint(aov.fly)
+```
+
+# Ex. 4
+
+Considering two diagnostic plots below, we don't necessarily see any
+strong patterns in the residuals. However, the Q-Q plot shows that the
+residuals look very non-normal, so it is likely our assumption about
+normal data is broken. Our model is probably not very good since we are
+violating many assumptions!
+
+```{r}
+plot(aov.fly, 1)
+```
+
+```{r}
+plot(aov.fly, 2)
+```
+
+Considering a couple extra tests below, we do not reject the null of the
+Levene test that all the variances are equal, so we have probably not
+violated the homoscedasticity assumption.
+
+And with the Shapiro-Wilk test, we can check the null that the residuals
+are normal. Since this is rejected with a small p-value, we are
+reassured that the residuals are not normal.
+
+```{r}
+# check variances 
+leveneTest(longevity ~ sexually_active * thorax, data = fly)
+
+# check residuals 
+aov_residuals = residuals(aov.fly)
+shapiro.test(x = aov_residuals )
+```
