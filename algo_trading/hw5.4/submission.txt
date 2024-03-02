@@ -1,0 +1,10 @@
+QC Project Link: https://www.quantconnect.com/project/14125207
+
+Unrealized P/L: $ -982.42
+
+Strategy: I used the usual pairs trading strategy general idea, but placed slightly more restrictive risk management controls to 
+hopefully protect against downside and prevent margin calls. I liquidated if margin was less than $20,000 and also liquidated if the z-score
+was greater than or equal to 3. Otherwise, it was the same as the pairs trading strategy we saw in class and in homeworks.
+
+Errors: I didn't have any code errors that stopped the code, just the couple of QC-wide outages that shut down most of our live trading. It seemeed
+to run smoothly otherwise, though. The bug near March 3rd was the QC-wide shut down.

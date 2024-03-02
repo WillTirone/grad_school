@@ -1,0 +1,51 @@
+(10 pts) Write an algorithm on QC to compute the max, min and average for the rolling 120-day 
+autocorrelations (with lag =3, and non-overlapping 3-day periods) for each of these stocks. (Hint: use pandas slicing method [::3])
+
+
+I had to use a 40 day rolling window in an attempt to get the autocorrelations to calculate. 
+It doesn't seem like our date range was wide enough to make 120 days possible. 
+Many other people were confused on the Ed discussion board so submitting my attempt anyway.
+
+ROKU has the highest max autocorrelation at 0.6089899610665084 and AMD has the 
+smallest min autocorrelation at -0.48412898202100624. This was done in the hw3 folder under 3.1.ipynb.
+
+
+(5 pts) Find the stock (called S1) with the highest max autocorrelation and design a 
+trendfollowing momentum strategy that is based on indicator SMA(20). 
+The portfolio weight to be 50% of the portfolio value. Find the Sharpe Ratio and Drawdown 
+during the backtest period. (Hint: self.SetHoldings method)
+
+URL:https://www.quantconnect.com/terminal/processCache?request=embedded_backtest_f0ce8c84e5685214047c26674cf09b46.html
+
+S1 = ROKU
+
+Sharpe = -0.174
+Drawdown = 36.400%
+
+(5 pts) Find the stock (called S2) with the lowest min autocorrelation and design a 
+trend-reversal momentum strategy that is based on indicator SMA(20). The portfolio weight 
+to be 50% of the portfolio value. Find the Sharpe Ratio and Drawdown during the backtest period.
+
+URL: https://www.quantconnect.com/terminal/processCache?request=embedded_backtest_88d1ad7c1968f513d3b554ea7ed23161.html
+
+S2 = AMD
+
+Sharpe = -0.52
+Drawdown = 27.200%
+
+(10 pts) Combine #2 and #3 into a new trading strategy involving both S1 and S2, and the 
+same momentum indicator. The portfolio weight for S1 and S2 are 25%. Find the Sharpe Ratio 
+and Drawdown during the backtest period.
+
+URL: https://www.quantconnect.com/terminal/processCache?request=embedded_backtest_a841a25f152f6d01062bd49b723a40ea.html
+
+Sharpe = -0.43
+Drawdown = 25.300%
+
+(5 pts) Compare the size of the drawdown for #3 and #4 and explain why the result makes sense.
+
+#4 has a slightly smaller drawdown compared to #3. I think this is because we combined trend 
+reversal and trend following with two stocks that are probably somewhat correlated (not calculated here but both tech stocks), 
+it provided a moderate amount of diversification and lowered drawdown. I imagine if we made the two stocks very unrelated, 
+like an energy and a tech stock, the drawdown would be even smaller. Out of curiosity, I tried with JPM instead of AMD 
+and the drawdown was 27%, in fact higher than the two tech stocks.

@@ -1,0 +1,210 @@
+---
+title: "STA 602 HW 4"
+author: "William Tirone"
+format: pdf
+editor: visual
+---
+
+# 3.9
+
+a\) To find the form of the prior, we can express the distribution in its exponential family form and pick out the components needed to construct the prior (using the notation from the book):
+
+$$
+Need: p(y) = h(y)c(\phi)e^{\phi t(y)}
+$$
+
+$$
+\begin{aligned}
+h(y) & = \frac{2}{\Gamma(a)} y^{2a-1}\\
+c(\phi) & = \phi^a\\
+t(y) &= -y^2\\
+\phi &= \theta^2
+\end{aligned}
+$$
+
+Now we know the prior will have the form:
+
+$$
+p(\phi) = k(n_0,t_0)c(\phi)^{n_0}e^{n_0t_0\phi} = k(n_0,t_0)\phi^{a n_0}e^{n_0t_0\theta^2}
+$$
+
+Now using the change of variables formula to get the prior on $\theta = \sqrt\phi$
+
+$$
+\begin{aligned}
+p(\theta) & = p(\phi) * |\frac{d\phi}{d \theta}| \\
+& = k(n_0,t_0) \theta^{2a * n_0} e^{n_0t_0\theta^2}  * 2\theta\\
+& \propto \theta^{2a * n_0 + 1}e^{n_0t_0\theta^2} \\
+& \sim galenshore(an_0+1 , \sqrt{-n_0t_0})
+\end{aligned}
+$$
+
+Now attempting to plot these priors:
+
+```{r}
+
+
+y = seq(0,100,1)
+
+n0 = 0.1
+t0 = -0.1
+a = 5
+theta= sqrt(-n0 * t0)
+
+
+values = (2/gamma(a*n0 + 1)) * theta ^(2*a) * y^(2*a*n0+1) * exp(1)^(-theta^2 * y^2)
+plot(y,values,type='l')
+
+n0 = 0.1
+t0 = -0.1
+a = 5.2
+theta= sqrt(-n0 * t0)
+
+values2 = (2/gamma(a*n0 + 1)) * theta ^(2*a) * y^(2*a*n0+1) * exp(1)^(-theta^2 * y^2)
+
+lines(y,values2,type='l',col='blue')
+```
+
+b\)
+
+![](IMG_0013.PNG) ![](IMG_0014.PNG)
+
+c)  and d)
+
+![](IMG_0015.PNG)
+
+e)  
+
+![](IMG_0016.PNG)
+
+# 2
+
+a\)
+
+Let $\sum x_i = X$ We have that $\delta(x) = \frac{X+10}{n+1}$, so the bias, is:
+
+$$
+E(\delta(X)) - \theta \\
+= \frac{10 + E(X)}{1+n} - \theta\\
+= \frac{10-\theta}{11}
+$$
+
+Above using that we have n=10, and that n iid poisson result in $X \sim POIS(n\theta)$ so the expected value is $n\theta$
+
+With variance:
+
+$$
+Var(\frac{X+10}{n+1}) = \frac{Var(X)}{(11)^2} = \frac{10\theta}{121}
+$$
+
+So the MSE is then:
+
+$$
+\frac{(10-\theta)^2 + 10\theta}{121}
+$$
+
+b\)
+
+The MSE for the Bayes estimator under squared error loss, the posterior mean, is lower than the MSE for the MLE from about theta = 6 to theta = 16, so this is "outperforming" the MLE in that narrow range of thetas.
+
+I believe this is the case where the bias does not make as much of a difference, so we're doing a little better by accepting some bias for a lower variance. However, as theta grows, the tradeoff is no longer worth it, and the MSE is lower for the MLE because of its unbiasedness.
+
+```{r}
+thetas = seq(0,20,1)
+values = ((10-thetas)^2 + 10 * thetas)/121
+x_bar_vals = thetas / 10
+
+plot(thetas,values,type='l',ylab='mse')
+lines(thetas,x_bar_vals,type='l',col='blue')
+```
+
+# 3
+
+a\)
+
+Bias is calculated below, and is clearly biased though slightly difficult to simplify:
+
+$$
+\begin{aligned}
+E(\delta_5(X)) & = \frac{E(X) + \sqrt n / 2}{n + \sqrt n } - \theta \\ 
+& = \frac{n\theta + \sqrt n / 2}{n + \sqrt n } - \theta
+\end{aligned}
+$$
+
+variance:
+
+$$
+\begin{aligned}
+Var(\delta_5(X)) & = \frac{Var(X)}{(n + \sqrt n )^2} \\
+& = \frac{n\theta(1-\theta)}{(n + \sqrt n )^2} \\
+\end{aligned}
+$$
+
+and MSE:
+
+$$
+\begin{aligned}
+& = (\frac{n\theta + \sqrt n / 2}{n + \sqrt n } - \theta)^2 + 
+\frac{n\theta(1-\theta)}{(n + \sqrt n )^2}\\
+& = \frac{1}{4 (1 + \sqrt n)^2}
+\end{aligned}
+$$
+
+b\)
+
+```{r}
+thetas = seq(0,1,0.01)
+n=5
+
+d1 = (thetas * (1-thetas))/n
+d2 = (.5 - thetas)^2
+d3 = (n * thetas * (1-thetas) + 144 * (1-2*thetas)^2) / (n+24)^2
+d4 = (n * thetas * (1-thetas)  + (1-2*thetas)^2) / (n+2)^2
+d5 = 1 / (4 * (sqrt(n) + 1)^2)
+
+plot(thetas,d1,type='l',col='black',ylab='mse',ylim=c(0,0.10))
+lines(thetas,d2,col='blue')
+lines(thetas,d3,col='red')
+lines(thetas,d4,col='green')
+abline(h=d5,col='purple')
+```
+
+```{r}
+n=100
+
+d1 = (thetas * (1-thetas))/n
+d2 = (.5 - thetas)^2
+d3 = (n * thetas * (1-thetas) + 144 * (1-2*thetas)^2) / (n+24)^2
+d4 = (n * thetas * (1-thetas)  + (1-2*thetas)^2) / (n+2)^2
+d5 = 1 / (4 * (sqrt(n) + 1)^2)
+
+plot(thetas,d1,type='l',col='black',ylab='mse',ylim=c(0,0.005))
+lines(thetas,d2,col='blue')
+lines(thetas,d3,col='red')
+lines(thetas,d4,col='green')
+abline(h=d5,col='purple')
+```
+
+c\)
+
+$$
+\frac{n}{n + \sqrt n}\frac{X}{n} + \frac{\sqrt n}{n + \sqrt n} \frac{1}{2}
+$$
+
+Just to convince myself, I calculated the weights under n=5 and n=100 below. Even in the low sample size case, we place a low weight of about .3 on our "dumb" prior of 1/2, since this is effectively a made up number. Still, though, we give it some weight if we have almost no observations. With a larger n, we almost completely ignore the static prior.
+
+Since unbiasedness is not useful at all when we have a very small sample size, we don't really care that 1/2 is biased since it has no variance.
+
+```{r}
+n = 5 
+
+n / (sqrt(n) + n)
+sqrt(n) / (sqrt(n) + n)
+```
+
+```{r}
+n = 100 
+
+n / (sqrt(n) + n)
+sqrt(n) / (sqrt(n) + n)
+```

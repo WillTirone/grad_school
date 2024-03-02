@@ -1,0 +1,43 @@
+Calculations were performed in hw7/hw7.ipynb on QC. I have also attached the cells as a .py file for sakai submission but these were done 
+in the research environment. 
+
+#1
+
+
+Performed these calculations based on slide 205. (A bit confused though as the question asks for betas from a linear regression but the 
+formula given will not yield beta coefficients from OLS).
+
+AAPL  Beta : 0.41435449552207254
+AMZN  Beta : 0.17937677275688335
+BRK.B  Beta : 0.5447752152950358
+GOOG  Beta : 0.6106905232513787
+GOOGL  Beta : 0.6093975041079481
+MSFT  Beta : 1.214030731344668
+NVDA  Beta : 1.8268681113947542
+SPY  Beta : 1.0
+TSLA  Beta : 0.9608290719765303
+UNH  Beta : 1.3530067454285724
+XOM  Beta : 0.1324573799315473
+
+#2 
+
+The null hypothesis of the Augmented Dickey-Fuller is that there is a unit root, with the alternative that there is 
+no unit root. If the pvalue is above a critical size, then we cannot reject that there is a unit root. We do not want 
+a unit root, so that we can conclude that the two stocks will converge and they will be suitable for pairs trading.
+
+AAPL ADF stat :  -1.5552848766620446
+AMZN ADF stat :  -3.2051500115831826
+AMZN Statistically Significant p-value :  0.01968850497198169
+BRK.B ADF stat :  -2.0559573980524473
+GOOG ADF stat :  -2.197221604560926
+GOOGL ADF stat :  -2.2942462792970595
+MSFT ADF stat :  -2.6914943531559246
+NVDA ADF stat :  -2.726597400417195
+SPY ADF stat :  -0.7739702262200912
+TSLA ADF stat :  -1.3767896562321469
+UNH ADF stat :  -2.5868333163390527
+XOM ADF stat :  -2.6251657056324067
+
+#3
+
+Based on the ADF test, only the pair (AMZN, SPY) would be suitable for pairs trading. 

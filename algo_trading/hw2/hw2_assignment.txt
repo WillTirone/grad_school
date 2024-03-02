@@ -1,0 +1,56 @@
+
+1. (5 pts) Compute the Sharpe Ratio of a buy-and-hold strategy for each of the above stocks individually for the given time period, that is, you need to compute four Sharpe Ratios separately, one for each stock.
+
+ANSWER:
+
+GS: 0.613 (URL: https://www.quantconnect.com/terminal/processCache?request=embedded_backtest_b0c74d015b8e7d1035537b211b98f99d.html)
+
+MS: 0.782 (URL: https://www.quantconnect.com/terminal/processCache?request=embedded_backtest_b586b8006870bb8c6bf6be93981394b2.html)
+
+AMD: 1.583 (URL: https://www.quantconnect.com/terminal/processCache?request=embedded_backtest_f8843d85276a67e76713f79ee38fb6a4.html)
+
+XOM: -0.242 (URL: https://www.quantconnect.com/terminal/processCache?request=embedded_backtest_2d024f0218838f096c14237761583884.html)
+
+2. (5 pts) Perform relevant statistical test such as Jarque-Bera test to see if GMB assumption holds for these stocks during the given time period. Assume 95% confidence interval in your test.
+
+JB Statistic for GS :  262.2172750719061 
+P Value:  1.1487940784058843e-57
+JB Statistic for MS :  1831.6820861605268 
+P Value:  0.0
+JB Statistic for AMD :  3230.557803628858 
+P Value:  0.0
+JB Statistic for XOM :  683.2058716954651 
+P Value:  4.402810153806929e-149
+
+ Based on the output above, (viewable in Notebook hw2.2.ipynb) it seems with the very small p-values that the returns are not normally distributed. 
+
+3. (5 pts) In problem #1, what does Sharpe ratio looks like if you exit position when you make or loss 7% of the starting value?
+
+GS: -0.301 (URL: https://www.quantconnect.com/terminal/processCache?request=embedded_backtest_b6de8c282ca75b0b7e776446bf154fd6.html)
+MS: 0.646 (URL: https://www.quantconnect.com/terminal/processCache?request=embedded_backtest_57062aece3977a178217685ab0129589.html)
+AMD: -1.123 (URL: https://www.quantconnect.com/terminal/processCache?request=embedded_backtest_eaab1928345a3e9617921a0c48318b23.html)
+XOM: 0.879 (URL: https://www.quantconnect.com/terminal/processCache?request=embedded_backtest_5c1652872c001fd3db0fc6150dbc1f5f.html)
+
+4. (5 pts) What is the Sharpe ratio if you long GS and short MS with an equal market value weight for the long and short positions?
+
+-0.445 (URL : https://www.quantconnect.com/terminal/processCache?request=embedded_backtest_d767843d24405018ac7c9a778a339f89.html)
+
+5. (5 pts) Compute the Sharpe Ratio for a strategy of longing GS and AMD, shorting MS and XOM, with each proportion of market value of 25%. You do not trade, just hold the positions to the end of the period. For example, if you have starting cash of $1,000,000. You long GS and AMD each with market value of $250,000, and short MS and XOM with negative market value of 250,000
+
+Sharpe Ratio:  1.26 (URL: https://www.quantconnect.com/terminal/processCache?request=embedded_backtest_aa6c8c4b750825fc30dc0a69981c11e7.html)
+
+6. (5 pts) Explain in each of 3-5 problem why your answer makes sense.
+
+#3 : 
+
+The negative Sharpe ratios for GS and AMD indicate that they lost money, that is, portfolio return was less than the risk-free rate (since the denominator, stdev, can't be negative). I believe AMD was also more volatile than GS given the higher sharpe ratio (in absolute terms). The chart confirms this since the price took a sharp dive early in the backtesting period.
+
+In contrast, MS and XOM had moderately positive returns and thus have similar Sharpe ratios, both between 0 and 1.
+
+#4 : 
+
+Here we know we have a negative return since the ratio is negative, though visually the plot of portfolio value does not look extremely volatile and our loss was about 13% of the total value.
+
+#5 : 
+
+It looks like the high Sharpe ratio (between 1 and 2) is mostly driven by the high return which was around 60% while also keeping volatility low.

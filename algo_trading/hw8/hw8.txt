@@ -1,0 +1,33 @@
+(15 pts) Find the option price and implied volatility for:
+
+Below answers were found by running the script in hw8_number_1.py and then loading the dataframe in the research environment, hw9.ipynb. 
+Then I took the IV and "LastPrice" as the price for each. (no backtest provided as no trades took place).
+
+At 2022-10-14 15:0:0, a Call option on AAPL with strike price 145 and expiry of 2022-11-18
+
+ANSWER: 
+	PRICE: 5.60
+	IV: 0.391484
+
+At 2022-10-17 10:0:0, a Put option on AAPL with strike price of 130 and expiry of 2022-11-11
+
+ANSWER: 
+	PRICE: 2.27
+	IV: 0.460029
+
+Use linear interpolation to find the implied volatility at 2022-10-17 13:00:00 for an OTC Put option struck at 128.25 with expiry of 2022-12-16.
+
+Here, used numpy's np.interp and the same structure as the above two options. 
+I used the following code to bracket the $128.25 price. I couldn't seem to pull [$128, $129] strikes, 
+so I used [$125, $130] which will make the interpolation less accurate but should still be close. Calculated 
+specifically in hw8.ipynb.
+
+ANSWER: 0.4171778
+
+2. (30 pts)
+
+My general strategy was to find the call ATM that I wanted to trade, compute the rolling 25-day sigma, and place orders based on the current IV of 
+the contract and historical volatility. This resulted in a profit of 12% from 11/1 - 11/18. I also stopped trading the day before expiration since 
+delta = 0 on the day of expiration. I also placed orders using the options as 5% of my portfolio.
+
+BACKTEST: https://www.quantconnect.com/terminal/processCache?request=embedded_backtest_05453e383a8cc9cfeb837872320be5b7.html

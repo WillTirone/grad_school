@@ -1,0 +1,28 @@
+part a)
+
+Backtest URL: https://www.quantconnect.com/terminal/processCache?request=embedded_backtest_b76e62b4d14a0ac4823db9dd1704e5f1.html
+This corresponds to the .py file hw1_script_a.py
+
+Parts 1-4 are included in the .py file. For part 5, this seems relatively straight forward that the backtest makes sense since we just buy and hold 
+then sell as soon as we get to $900K.
+
+part b)
+
+Backtest URL: https://www.quantconnect.com/terminal/processCache?request=embedded_backtest_1ee9b9132d3e48a1a2f5ea3d8a8aad94.html
+This corresponds to the .py file hw1_script_b.py
+
+Part 1 & 2 are included in the code. 
+Then, by placing the limit order on the first day, it fills when the condition is met so the backtest makes sense. Previously,
+I had an issue where it was repeatedly placing the order and I was checking .IsShort, but it seems that since the orders have no time limit
+by default, the first day approach worked well. I'm also assuming that in the instructions, "recode your algo" means to keep the liquidation 
+condition if the portfolio falls below 900k so I left that in.
+
+part c) 
+
+Backtest URL: https://www.quantconnect.com/terminal/processCache?request=embedded_backtest_ec9ee9fcb1c2973662e5490d5859bf9b.html
+Corresponds to hw1_script_c.py
+
+To find the optimal value, I stepped through by trying a few orders then splitting the middle and scaling the number of shares of GOOG 
+along with my choice for the number of shares to short. For example, I tried shorting 5000 and 6000, where 6000 produced a margin call but 5000 did not.
+Then, I tried 5500, and since that did not produce a margin call, tried 5750, and so on. This eventually resulted in 5628 as the maximum number of shares 
+I could short over the backtest period without getting a margin call.
