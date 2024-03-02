@@ -1,0 +1,216 @@
+---
+title: "Sta 344 / 644 - Fall 2023 - Midterm 2 - Take home"
+subtitle: "Due Monday, Dec 4th by 5 pm"
+author: "Will Tirone"
+format: 
+  html:
+    self-contained: true
+---
+
+```{r setup}
+#| include: false
+library(rnaturalearth)
+library(rnaturalearthdata)
+library(geosphere)
+library(sfheaders)
+library(tidyverse)
+library(sf)
+library(stars)
+library(tigris)
+library(raster)
+```
+
+------------------------------------------------------------------------
+
+# Questions
+
+**Q1** *(100 pts) All of the following questions have answers that are relatively easy to google / lookup, but the point of the question is that you must arrive at these solutions programatically using the tools available in `sf`. We have also not provided the necessary shapefiles (or other spatial data sources) so part of your task is to also locate these data. The data may be directly read in from webhosts via a URL, sourced from an R package, or downloaded and committed into your repo's `data/` directory. Hint - always check the projection systems of your data.*
+
+*Your write up for each subquestion only needs to provide details / reference to where you obtained the data and any cleaning that was necessary. You do not need to write up the code used to answer the question but you should include comments in your code to provide additional context if needed.*
+
+a.  (20 pts) *List the countries that the Nile river passes through*
+
+-   used ChatGPT to get shapefile from `rnaturalearth` package.
+-   had an issue downloading and unzipping shape files, so used this SO solution: https://stackoverflow.com/questions/61282572/cant-read-shp-file-in-r. For some reason, uploading the whole .zip folder to RStudio also fixes the issue, but this approach works too. Later in the assignment I just uploaded a whole folder for a different file.
+-   And used a github issue to resolve intersection / coordinate system issue: <https://github.com/r-spatial/sf/issues/1902>
+
+Based on the result below, we have Sudan, Egypt, Uganda, and South Sudan. Only cleaning necessary was filtering the river shapefile to just the Nile.
+
+```{r warning=FALSE}
+
+# download files 
+temp_shapefile <- tempfile()
+download.file("https://www.naturalearthdata.com/http//www.naturalearthdata.com/download/110m/physical/ne_110m_rivers_lake_centerlines.zip", 
+              temp_shapefile)
+unzip(temp_shapefile)
+
+# pull out the Nile river 
+rivers <- read_sf('ne_110m_rivers_lake_centerlines.shp')
+nile = rivers |> filter(name == "Nile")
+
+# Get Africa shapefile
+africa <- ne_countries(continent = "Africa", returnclass = "sf")
+
+# disable s2 so polygons don't intersect
+sf_use_s2(FALSE)
+nile = st_make_valid(nile)
+africa = st_make_valid(africa)
+
+st_intersection(africa, nile) |> 
+  dplyr::select(admin) |> 
+  st_drop_geometry() |> 
+  pull()
+```
+
+b.  (20 pts) *If you were to fly from Chicago to Bangkok, Thailand, via the shortest great circle route, what countries would you fly over?*
+
+Based on the code below, we have Canada, the U.S., China, Mongolia, Laos, Russia, and Thailand. It incorrectly intersects Greenland because the points cross the dateline, though the great circle route does not actually go through Greenland. The rest, though, we can visually confirm are correct. It is also surprisingly not straightforward to find the great circle line, as evidenced by this guide that I referenced:
+
+-   <https://www.jessesadler.com/post/great-circles-sp-sf/#:~:text=With%20sf%20the%20creation%20of,the%20trickier%20of%20the%20two.>
+
+```{r warning=FALSE}
+
+# Download world map data
+world <- ne_countries(scale = "medium", returnclass = "sf")
+
+# Coordinates for Chicago and Bangkok
+chicago_coords <- c(lon = -87.6298, lat = 41.8781)
+bangkok_coords <- c(lon = 100.5167, lat = 13.7563)
+
+# Calculate points along the great circle route
+gc_route <- gcIntermediate(
+  p1 = chicago_coords,
+  p2 = bangkok_coords,
+  n = 500,
+  addStartEnd = FALSE,
+  sp = FALSE,
+  breakAtDateLine = FALSE
+)
+
+line <- sfheaders::sf_linestring(gc_route)
+st_crs(line) = st_crs(world)
+
+sf_use_s2(FALSE)
+line = st_make_valid(line)
+world = st_make_valid(world)
+
+st_intersection(world, line) |> 
+  dplyr::select(admin) |> 
+  st_drop_geometry() |> 
+  pull()
+
+ggplot() + 
+  geom_sf(data = world, color = 'black') + 
+  geom_sf(data = line, color = 'red')
+```
+
+c.  (20 pts) *Recreate the main feature(s) of the plot at the beginning of the ACLU's [100 Mile Border Zone](https://www.aclu.org/know-your-rights/border-zone). Specifically, show the 100 mile border zone around the US and highlight the states that are included in the zone. You do not need to include the city labels or inset Alaska or Hawaii.*
+
+-   Referenced `tigris` documentation to pull in census boundary data: <https://www.rdocumentation.org/packages/tigris/versions/2.0.4>
+-   Used chatGPT to figure out the re-projection into a meter crs. Though my original issue was that I was super zoomed in because of the xlim / ylim in degrees from above.
+
+Created a "negative" band here, found the intersection with the US, and filled that in. The only slight problem is how the maps from tigris are drawn for the nation vs. the states particularly around Michigan and the Great Lakes, so that looks a little funny on the map.
+
+Had some trouble intersecting or differencing my border band, so I just manually selected the states that the line didn't touch and filled them with blue. Not the most programmatic approach but it worked.
+
+```{r}
+# load states and nation
+us_states <- tigris::states() |> 
+  filter(!(NAME %in% c('Alaska', 'Hawaii', 'American Samoa',
+                       'Commonwealth of the Northern Mariana Islands',
+                       'United States Virgin Islands', 'Puerto Rico',
+                       'Guam')))
+us = tigris::nation()
+
+# project both to meters
+us_states_transf = st_transform(us_states, crs = 
+                     st_crs("+proj=laea +lat_0=45 +
+                            lon_0=-100 +x_0=0 +y_0=0 
+                            +a=6370997 +b=6370997 +units=m +no_defs"))
+us_transf <- st_transform(us, crs = 
+                     st_crs("+proj=laea +lat_0=45 +
+                            lon_0=-100 +x_0=0 +y_0=0 
+                            +a=6370997 +b=6370997 +units=m +no_defs"))
+
+# create a "negative" buffer in meters, 1 mile = 1609.34m
+buffer <- st_buffer(us_transf, dist = -100 * 1609.34)  
+
+# Create the band by subtracting the smaller buffer from the larger buffer
+us_band <- st_difference(us_transf, buffer)
+
+null_states = c("Colorado", "Utah", "Nevada", "Kansas", "Oklahoma",
+                "South Dakota", "Nebraska", "Missouri", "Iowa",
+                "Kentucky", "Tennessee", "Arkansas")
+
+ggplot() +
+  geom_sf(data = us_states_transf) +
+  geom_sf(data = us_band, fill = "red", alpha=0.5) +
+  geom_sf(data = us_states_transf |> filter(NAME %in% null_states),
+          fill='steelblue', alpha=0.5) + 
+  theme_minimal() + 
+  xlim(c(-2000000, 2800000)) + 
+  ylim(c(-2500000, 800000))
+```
+
+d.  (20 pts) *Create a map that shows the location of all US national parks (you are welcome to use polygons or points to represent the parks). Your map should also show the boundaries of all states and highlight the states that contain a national park. Your map only needs to include the lower 48 states but bonus points will be awarded for inseting Alaska and Hawaii.*
+
+Here I just uploaded a shape file from the national park service, found the intersections, and plotted the park's boundaries along with the original states boundaries. The states in white have no national parks, and the tan states have national parks.
+
+```{r}
+
+# pull out the Nile river 
+nps <- read_sf('data/nps_boundary.shp')
+
+# set crs same as states 
+nps = st_transform(nps, st_crs(us_states)) |> 
+  filter(UNIT_TYPE == 'National Park')
+
+# find which states have national parks
+intersect = st_intersection(us_states, nps)
+fill_in = unique(intersect$NAME)
+
+ggplot() +
+  geom_sf(data = us_states, fill = "white", color = "black") +
+  geom_sf(data = us_states |> filter(NAME %in% fill_in), 
+          fill = "tan", color = "black") + 
+  geom_sf(data = nps, fill = 'palegreen4', color='black') + 
+  xlim(c(130, 65))+
+  ylim(c(23, 50)) + 
+  ggtitle("U.S. National Parks")
+```
+
+e.  (20 pts) *Create and plot a raster map of the lower 48 United States (the specific X & Y resolution is up to you) and populate each raster cell with the distance to the nearest National Park. The result should be similar to the map presented [here](http://www.datapointed.net/2009/09/distance-to-nearest-mcdonalds/) for distance to the nearest McDonalds.*
+
+Here I created raster objects of the maps, found their centroids, and calculated the closest distance from each U.S. cell to the closest national park and plotted everything.
+
+```{r}
+
+r_usa = stars::st_rasterize(
+  us, 
+  stars::st_as_stars(st_bbox(us), nx = 500, ny = 500, values=NA_real_)) |> 
+  st_as_sf(coords = c("x", "y"), crs= 3857, agr = "constant") |> 
+  dplyr::select(geometry)
+
+r_nps = stars::st_rasterize(
+  nps,
+  stars::st_as_stars(st_bbox(nps), nx = 500, ny = 500, values=NA_real_)) |> 
+  st_as_sf(coords = c("x", "y"), crs= 3857, agr = "constant") |> 
+  dplyr::select(geometry)
+
+nps_points = st_centroid(r_nps)
+us_points = st_centroid(r_usa)
+
+combined = tibble(
+  us_points, 
+  Distance = apply(st_distance(us_points, nps_points), 1, min)
+)
+
+ggplot(data = combined, aes(geometry = geometry)) + 
+  geom_sf(aes(color=Distance)) + 
+  geom_sf(data = nps_points) + 
+  theme_minimal() + 
+  xlim(c(-130,-60)) + 
+  ylim(c(22,52)) + 
+  scale_color_viridis_c(option='plasma') + 
+  ggtitle("Distance to Closest National Park (in meters)")
+```

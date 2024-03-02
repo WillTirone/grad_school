@@ -1,0 +1,599 @@
+---
+title: "Homework 3"
+subtitle: Due Monday, 10/30 by 5:00 pm
+author: "Will Tirone"
+format: 
+  html:
+    self-contained: true
+editor: 
+  markdown: 
+    wrap: 72
+---
+
+```{r setup}
+#| include: false
+library(tidyverse)
+library(brms)
+library(MASS)
+library(cowplot)
+library(tsibble)
+library(dukestm)
+```
+
+### Question 1
+
+<i> Assume you are given a bivariate normal distribution,
+$Y = (y_1, y_2)^t$, with $\mu = (\mu_1, \mu_2)^t$ and
+$\Sigma = \begin{pmatrix}\sigma^2 & \rho \, \sigma^2 \\ \rho \, \sigma^2 & \sigma^2\end{pmatrix}$
+where $\sigma > 0$ and $-1 \leq \rho \leq 1$. </i>'
+
+<br/>
+
+a.  <i> Show that the marginal distribution of $y_1$ is given by
+    $y_1 \sim \mathcal{N}(\mu_1, \sigma^2)$.</i>
+
+Again to shorten our work, I have borrowed results from this resource :
+https://statproofbook.github.io/P/mvn-marg. We could integrate it
+directly, but dealing with the cross term seems tricky without some
+tedious calculus.
+
+Let: 
+
+$$
+\begin{aligned}
+Y \sim N(\mu, \Sigma)\\
+Y_s \sim N(\mu_s, \Sigma_s)
+\end{aligned}
+$$ 
+Where $Y_s$ is any subset of $Y$.
+
+let $S$ be an $m \times n$ matrix where $s_{ij} = 1$ if the j-th element
+is in $Y_s$ and 0 otherwise. Then $Y_s = SY$. In the bivariate case for
+this problem, we have $S_{1 \times 2} = [ \ 1 \ 0 \ ]$ so $SY = y_1$. Then we 
+know that any combination of normal random variables is also a normal random
+variable. That is:
+
+$$
+\begin{aligned}
+y &= Ax + b \sim N(A\mu + b, A\Sigma A^T) \\ 
+&\text{and we have} \\ 
+y &= SY + 0 \sim N(S\mu + 0, S\Sigma S^T) \\ 
+&= y_1 \sim N(\mu_1, \sigma^2)
+\end{aligned}
+$$
+
+
+b.  <i> Show that the conditional distribution of $y_1 \,|\, y_2 = a$ is
+    given by
+    $y_1|y_2 = a \sim \mathcal{N}(\mu_1 + \rho(a-\mu_2),\sigma^2-\rho^2\sigma^2).$</i>
+
+In general, we know the following, which I've taken from the Lec. 13
+slides.
+
+$$
+\begin{aligned}
+\boldsymbol{y}_1 ~|~ \boldsymbol{y}_2 = \boldsymbol{a} ~&\sim N(\boldsymbol{\mu_1} + \boldsymbol{\Sigma_{12}} \, \boldsymbol{\Sigma_{22}}^{-1} \, (\boldsymbol{a} - \boldsymbol{\mu_2}),~ \boldsymbol{\Sigma_{11}}-\boldsymbol{\Sigma_{12}}\,\boldsymbol{\Sigma_{22}}^{-1} \, \boldsymbol{\Sigma_{21}}) \\
+\end{aligned}
+$$
+
+To make our work easier, we will use this fact and plug in the bivariate
+case to show they're equivalent. The inverse of a scalar is 1 divided by
+the scalar, so we mostly just grab the entries of $\Sigma$ and plug them
+in. That is:
+
+$$
+\begin{aligned}
+\boldsymbol{y}_1 ~|~ \boldsymbol{y}_2 = \boldsymbol{a} ~&\sim N(\mu_1 + \frac{\rho\sigma^2}{\sigma^2}
+(a - \mu_2), \sigma^2 - \rho\sigma^2 \frac{1}{\sigma^2}\rho\sigma^2) \\
+&\sim N(\mu_1 + \rho(a - \mu_2), \sigma^2 - \rho^2\sigma^2 )
+\end{aligned}
+$$
+
+And we have the result.
+
+------------------------------------------------------------------------
+
+### Question 2
+
+a.  <i> Using the Cholesky method described in class, generate 1000
+    samples from the multivariate normal described below. Note that the
+    `chol` method in R produces an upper triangular matrix, not a lower
+    triangular matrix. </i>
+
+$$
+\begin{aligned}
+\mu &= (1,2,3)^t \\
+\\
+\Sigma &= \begin{pmatrix} 
+3   & 0.5 & 1   \\
+0.5 & 2   & 1.5 \\
+1   & 1.5 & 3.5
+\end{pmatrix}
+\end{aligned}
+$$ Draw from a 3-dimensial multivariate normal. 1,000 draws was very
+rough, so I increased to 100,000 to make sure the code was working.
+
+```{r}
+set.seed(123)
+
+# set up 
+cov_matrix = matrix(c(3,0.5,1,0.5,2,1.5,1,1.5,3.5), 3, 3, byrow = T)
+mean = matrix(c(1,2,3))
+data = matrix(nrow = 100000, ncol = 3)
+colnames(data) = c("Y1", "Y2", "Y3")
+
+for (i in 1:100000) {
+  
+  # draw samples 
+  A = t(chol(cov_matrix)) # t() since R returns upper triangluar  
+  norm_draws = matrix(rnorm(3, 0, 1), 3, 1) # n x 1
+  y = mean + A %*% norm_draws # n x 1 + n x n %*% n x 1
+  
+  # save each draw as a row  
+  data[i,] = t(y)
+}
+
+data = data.frame(data)
+```
+
+b.  <i> Using the samples from part a. create 3 bivariate density plots
+    showing the relationship between each pair of dimensions (e.g. 1 vs.
+    2, 2 vs. 3, 1 vs 3). </i>
+
+Used some code from this link:
+https://bio304-class.github.io/bio304-fall2017/ggplot-bivariate.html
+
+```{r}
+data |> 
+  ggplot(aes(x = Y1, y = Y3)) + 
+  geom_density2d() + 
+  labs(title = "Y1 vs. Y3")
+```
+
+```{r}
+data |> 
+  ggplot(aes(x = Y2, y = Y3)) + 
+  geom_density2d() + 
+  labs(title = "Y2 vs. Y3")
+```
+
+```{r}
+data |> 
+  ggplot(aes(x = Y1, y = Y2)) + 
+  geom_density2d() + 
+  labs(title = "Y1 vs. Y2")
+```
+
+c.  <i> Compare the observed sample correlations with their expected
+    theoretical values. </i>
+
+First we'll look at the empirical covariance matrix. Again, I increased
+to 100,000 samples because 1,000 was pretty inaccurate, but this looks
+pretty close so we're happy with it.
+
+```{r}
+cov(data)
+```
+
+For each correlation, we'll just use `corr(Y_i, Y_j)`
+
+```{r}
+cat("Y1 vs. Y3 : ", cor(data$Y1, data$Y3), "\n")
+cat("Y2 vs. Y3 : ", cor(data$Y2, data$Y3), "\n")
+cat("Y1 vs. Y2 : ", cor(data$Y1, data$Y2))
+```
+
+And for each theoretical correlation, we can calculate:
+
+$$
+Corr(Y_i,Y_j) = \frac{Cov(Y_i,Y_j)}{\sqrt{Var(Y_i)}\sqrt{Var(Y_j)}} 
+\ \ \ ; \forall i \ne j
+$$
+
+```{r}
+cat("Theoretical corr(Y1,Y3) : ", 1 / (sqrt(3) * sqrt(3.5)), "\n")
+cat("Theoretical corr(Y2,Y3) : ", 1.5 / (sqrt(2) * sqrt(3.5)), "\n")
+cat("Theoretical corr(Y1,Y2) : ", 0.5 / (sqrt(3) * sqrt(2)))
+
+```
+
+And it looks like everything worked, since the theoretical and empirical
+values were close.
+
+------------------------------------------------------------------------
+
+### Question 3
+
+<i> For each of the following covariances, sample 1000 draws from the
+multivariate normal distribution at the 101 locations given by
+`x = seq(0, 1, length.out=101)`. For each covariance function construct
+a plot that has the following features: </i>
+
+-   <i> A line for each of the first 5 samples </i>
+
+-   <i> A line for the mean of samples for each `x` </i>
+
+-   <i> A 95% quantile interval for each `x`</i>
+
+
+```{r}
+x = seq(0, 1, length.out = 101)
+dist_ = as.matrix(dist(x, method = "manhattan"), 101, 101)
+mu = matrix(rep(0,101), nrow = 101, ncol = 1)
+```
+
+a.  <i> Squared exponential covariance with $\mu = 0$, $\sigma^2_w=0$,
+    $\sigma^2=1$, $l=\sqrt{3}$</i>
+
+$$ \Sigma(y_{t},y_{t'}) = \sigma^2 \exp\big(-(|t-t'| \; l\,)^2\big) $$
+
+```{r}
+
+# calculate cov and make draws 
+cov_ = exp(-(abs(dist_) * sqrt(3))^2)
+draws_ = data.frame(mvrnorm(1000, mu, cov_))
+
+first_5 = data.frame(t(draws_[1:5, ])) |> 
+  mutate(idx = seq(1,101, 1))
+
+# construct a summary values and combine 
+mean_ = data.frame(colMeans(draws_)) |> 
+  rename(mean = colMeans.draws_.) |> 
+  mutate(idx = seq(1,101, 1))
+
+q_ = data.frame(t(apply(draws_, 2, quantile, c(0.025, 0.975)))) |> 
+  mutate(idx = seq(1,101, 1))
+
+vals = left_join(mean_, q_)
+vals = left_join(vals, first_5)
+```
+
+## Plotting a)
+
+Below, the dotted black lines are the first 5 draws across the x values.
+
+```{r}
+vals |> 
+  ggplot(aes(x = idx)) +
+  geom_line(aes(y = mean, color = "Mean"), size = 1) +
+  geom_line(aes(y = X2.5., color = "2.5%"),  size = 1) +
+  geom_line(aes(y = X97.5., color = "97.5%"), size = 1) + 
+  geom_line(aes(y = X1, color = 'black'), linetype = "dashed", size = 0.5) + 
+  geom_line(aes(y = X2, color = 'black'), linetype = "dashed", size = 0.5) +
+  geom_line(aes(y = X3, color = 'black'), linetype = "dashed", size = 0.5) +
+  geom_line(aes(y = X4, color = 'black'), linetype = "dashed", size = 0.5) +
+  geom_line(aes(y = X5, color = 'black'), linetype = "dashed", size = 0.5) +
+  scale_color_manual(values = c("Mean" = "steelblue",
+                                "2.5%" = "red",
+                                "97.5%" = "forestgreen"),
+                     labels = c("2.5% quantile", "97.5% quantile", "Mean")) + 
+  theme_minimal() + 
+  labs(
+    x = "X",
+    y = "Draws from MVN",
+    title = "Squared Exponential Covariance, l = sqrt(3)"
+  )
+```
+
+b.  <i> Exponential covariance with $\mu = 0$, $\sigma^2_w=0$,
+    $\sigma^2=1$, $l=3$</i>
+
+$$ \Sigma(y_{t},y_{t'}) = \sigma^2 \exp\big(-|t-t'| \; l\big) $$ \##
+Plotting b)
+
+```{r}
+
+# calculate cov and make draws 
+cov_ = exp(-abs(dist_) * 3) 
+draws_ = data.frame(mvrnorm(1000, mu, cov_))
+
+first_5 = data.frame(t(draws_[1:5, ])) |> 
+  mutate(idx = seq(1,101, 1))
+
+# construct a summary values and combine 
+mean_ = data.frame(colMeans(draws_)) |> 
+  rename(mean = colMeans.draws_.) |> 
+  mutate(idx = seq(1,101, 1))
+
+q_ = data.frame(t(apply(draws_, 2, quantile, c(0.025, 0.975)))) |> 
+  mutate(idx = seq(1,101, 1))
+
+vals = left_join(mean_, q_)
+vals = left_join(vals, first_5)
+
+vals |> 
+  ggplot(aes(x = idx)) +
+  geom_line(aes(y = mean, color = "Mean"), size = 1) +
+  geom_line(aes(y = X2.5., color = "2.5%"),  size = 1) +
+  geom_line(aes(y = X97.5., color = "97.5%"), size = 1) + 
+  geom_line(aes(y = X1, color = 'black'), linetype = "dashed", size = 0.5) + 
+  geom_line(aes(y = X2, color = 'black'), linetype = "dashed", size = 0.5) +
+  geom_line(aes(y = X3, color = 'black'), linetype = "dashed", size = 0.5) +
+  geom_line(aes(y = X4, color = 'black'), linetype = "dashed", size = 0.5) +
+  geom_line(aes(y = X5, color = 'black'), linetype = "dashed", size = 0.5) +
+  scale_color_manual(values = c("Mean" = "steelblue",
+                                "2.5%" = "red",
+                                "97.5%" = "forestgreen"),
+                     labels = c("2.5% quantile", "97.5% quantile", "Mean")) + 
+  theme_minimal() + 
+  labs(
+    x = "X",
+    y = "Draws from MVN",
+    title = "Exponential Covariance, l = 3"
+  )
+```
+
+c.  <i> Powered exponential covariance with $\mu = 0$, $\sigma^2_w=0$,
+    $\sigma^2=1$, $p=1.5$, $l=3^{2/3}$</i>
+
+$$ \Sigma(y_{t},y_{t'}) = \sigma^2 \exp\big(-(|t-t'| \; l)^{1.5} \big) $$
+\## Plotting c)
+
+```{r}
+
+# calculate cov and make draws 
+cov_ = exp(-(abs(dist_) * 3^(2/3))^1.5) 
+draws_ = data.frame(mvrnorm(1000, mu, cov_))
+
+first_5 = data.frame(t(draws_[1:5, ])) |> 
+  mutate(idx = seq(1,101, 1))
+
+# construct a summary values and combine 
+mean_ = data.frame(colMeans(draws_)) |> 
+  rename(mean = colMeans.draws_.) |> 
+  mutate(idx = seq(1,101, 1))
+
+q_ = data.frame(t(apply(draws_, 2, quantile, c(0.025, 0.975)))) |> 
+  mutate(idx = seq(1,101, 1))
+
+vals = left_join(mean_, q_)
+vals = left_join(vals, first_5)
+
+vals |> 
+  ggplot(aes(x = idx)) +
+  geom_line(aes(y = mean, color = "Mean"), size = 1) +
+  geom_line(aes(y = X2.5., color = "2.5%"),  size = 1) +
+  geom_line(aes(y = X97.5., color = "97.5%"), size = 1) + 
+  geom_line(aes(y = X1, color = 'black'), linetype = "dashed", size = 0.5) + 
+  geom_line(aes(y = X2, color = 'black'), linetype = "dashed", size = 0.5) +
+  geom_line(aes(y = X3, color = 'black'), linetype = "dashed", size = 0.5) +
+  geom_line(aes(y = X4, color = 'black'), linetype = "dashed", size = 0.5) +
+  geom_line(aes(y = X5, color = 'black'), linetype = "dashed", size = 0.5) +
+  scale_color_manual(values = c("Mean" = "steelblue",
+                                "2.5%" = "red",
+                                "97.5%" = "forestgreen"),
+                     labels = c("2.5% quantile", "97.5% quantile", "Mean")) + 
+  theme_minimal() + 
+  labs(
+    x = "X",
+    y = "Draws from MVN",
+    title = "Powered Exponential Covariance, l = 3^(2/3), p = 1.5"
+  )
+```
+
+d.  <i>Compare the three plots, how are they similar and how do they
+    differ. Your answer should address the individual draws, the means,
+    and the quantile intervals.</i>
+
+The quantiles for b) and c) are much less smooth than part a), and the
+means for a) and c) are smoother and more constant than part b).
+Additionally, the individual draws for part a) have a more static
+trajectory, that is, they tend to move in a direction and not jump up
+and down like they do in b) and c). b) seems to have the most
+variability for draws across the x's, while c) looks like it's somewhere
+between a) and b).
+
+e.  <i>Create a plot showing the relationship between the covariance and
+    distance for all three covariance functions.</i>
+
+```{r}
+
+d = seq(0, 1.5, 0.01)
+cov_a = exp(-(abs(d) * sqrt(3))^2)
+cov_b = exp(-abs(d) * 3)
+cov_c = exp(-(abs(d) * 3^(2/3))^1.5)
+
+comb = data.frame(d, cov_a, cov_b, cov_c)
+
+p1 = comb |> 
+  ggplot() + 
+  geom_line(aes(x = d, y = cov_a),
+            col = 'steelblue',
+            size = 1) + 
+  labs(title = "Squared Exponential")
+
+p2 = comb |> 
+  ggplot() + 
+  geom_line(aes(x = d, y = cov_b),
+            col = 'red',
+            size = 1)  + 
+  labs(title = "Exponential")
+
+p3 = comb |> 
+  ggplot() + 
+  geom_line(aes(x = d, y = cov_c),
+            col = 'forestgreen',
+            size = 1) + 
+  labs(title = "Powered Exponential")
+
+plot_grid(p1, p2, p3, ncol = 3)
+```
+
+
+
+------------------------------------------------------------------------
+
+### Question 4
+
+<i>The `data/` folder includes two files called `gp.rds` and
+`gp_truth.rds` that contains observed data as well as data from the true
+process respectively.</i>
+
+```{r}
+#| echo: false
+gp = readRDS("data/gp.rds")
+gp_truth = readRDS("data/gp_truth.rds")
+```
+
+a.  <i>First estimate the mean and covaraince structure of these data:
+    </i>
+
+    -   <i> Fit a linear model to the data and then examining any
+        remaining dependence using a variogram. </i>
+
+    -   <i> Based on the variogram (roughly) estimate $\sigma^2$, $l$,
+        and $\sigma^2_w$. </i>
+
+```{r}
+m1 = lm(x ~ y, gp)
+summary(m1)
+
+mu = m1$coefficients[1] + m1$coefficients[2] * gp$x 
+mu_pred = m1$coefficients[1] + m1$coefficients[2] * gp_truth$x
+```
+
+```{r}
+
+# use augment and fit and find residuals, use that to find semivar
+
+emp_semi = emp_semivariogram(
+  gp, y, x, bin=TRUE, 
+  binwidth = 0.025
+) |> 
+  mutate(
+    sv = sq_exp_sv(d, sigma2 = 0.5, l = 3.25, sigma2_w = 0.1)
+  )
+
+emp_semi |> 
+  ggplot(aes(x=d, y=gamma)) +
+  geom_line(aes(y=sv), color='red') +
+  geom_point()
+```
+
+b.  <i>Using the estimates from part a ($\beta$s, $\sigma^2$, $l$, and
+    $\sigma^2_w$) construct an appropriate multivariate normal
+    distribution for these data and the predictive distribution at the
+    `x` locations given in `gp_truth`. Generate at least 1000 samples
+    from this distribution, using these draws create a best fit line and
+    prediction interval.</i>
+
+From the above, we have $\sigma^2 = 0.5, \ \ l = 3.25, \ \ \sigma^2_w = 0.1$. 
+
+```{r}
+y_post = cond_predict(gp$y, gp$x, gp_truth$x, 
+                      cov = sq_exp_cov, sigma2 = 0.5, 
+                      l = 3.25, reps = 1000,
+                      sigma2_w = 0.1, 
+                      mu = mu, 
+                      mu_pred = mu_pred)
+
+gp_truth = gp_truth |>
+  mutate(
+    post_mean = apply(y_post, 1, mean),
+    post_lower = apply(y_post, 1, quantile, probs=0.025),
+    post_upper = apply(y_post, 1, quantile, probs=0.975)
+  )
+```
+
+```{r}
+gp_truth |> 
+  ggplot(aes(x = x, y = y)) +
+  geom_point(size= 1) + 
+  geom_line(aes(y = post_mean), color = '#61D04F', linewidth=1.25) + 
+  geom_ribbon(aes(ymin = post_lower, ymax = post_upper, y = post_mean),
+              fill = 'steelblue', alpha = 0.2) + 
+  labs(
+    title = 'GP with sigma^2_w = 0.1, l = 3.25, sigma^2 = 0.5'
+  )
+```
+
+
+c.  <i>Fit a full Bayesian Gaussian process model using brms. Make sure
+    to include any relevant mean structure. Generate draws from the full
+    posterior predictive distribution at the `x` locations given in
+    `gp_truth`, draw a best fit line (posterior mean) and posterior
+    predictive credible interval for your model.</i>
+
+
+First, we'll fit the model. 
+
+```{r}
+gp_brms = brm(y ~ gp(x), data = gp, 
+              cores=4, refresh = 0, 
+              control = list(adapt_delta = 0.99))
+```
+
+And examining the trace plots, it looks like everything worked well. 
+
+```{r}
+plot(gp_brms)
+```
+And the posterior predictive checks look fine as well. 
+
+```{r}
+pp_check(gp_brms, ndraws = 100)
+```
+Now we can try to do the same thing we did in part b
+
+
+```{r}
+gp_brms_pred = predicted_draws_fix(gp_brms, newdata = gp_truth)
+
+gp_truth |> 
+  ggplot(aes(x = x, y = y)) +
+  geom_point(size= 1) + 
+  tidybayes::stat_lineribbon(
+    data = gp_brms_pred, 
+    aes(y = .prediction),
+    alpha = 0.25
+  )
+```
+
+
+d.  <i>Compare the predictive performance of both approaches, using the
+    `y` values in `gp_truth`. Which method appeared to perform better?
+    Explain.</i>
+    
+It's interesting that both models look extremely similar but the Bayesian 
+model has almost half the RMSE as the MVN model. Though, both have very low 
+RMSE's so I'm not sure that's enough of a difference to be sold on one model 
+over another, and the Bayesian model took much longer to fit. 
+
+I think the difference is that we very crudely chose $\sigma^2, \sigma^2_w$, and 
+l for the first model and in the Bayesian model we just used the default brms
+priors.
+
+```{r}
+
+# bayesian model 
+
+gprmse = gp_brms_pred |>
+      group_by() |> 
+      summarize(rmse = sqrt(sum(y - .prediction)^2)/n()) |> 
+      pull()
+
+# MVN model 
+
+y_post = as.data.frame(y_post)
+
+y_post = y_post |> 
+  mutate(x = seq(0,3,length.out = 100)) |> 
+  pivot_longer(
+    cols = -c('x'),
+    names_to = 'draw',
+    values_to = 'y_pred'
+  )
+
+y_sum = y_post |> 
+  group_by(x) |> 
+  summarize(.prediction = mean(y_pred)) 
+
+mvn_rmse = left_join(y_sum, gp_truth, by = 'x') |> 
+    mutate(.resid = y - .prediction) |> 
+    group_by() |> 
+    summarize(rmse = sqrt(sum(y - .prediction)^2)/n()) |> 
+    pull()
+
+cat("Bayesian GP RMSE : ", gprmse, "\n", 
+    "MVN GP RMSE : ", mvn_rmse, "\n")
+```

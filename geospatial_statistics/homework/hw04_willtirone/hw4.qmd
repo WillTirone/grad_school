@@ -1,0 +1,582 @@
+---
+title: "Homework 4"
+subtitle: Due 11/13/2022 by 5:00 pm
+author: "Will Tirone"
+format: 
+  html:
+    self-contained: true
+---
+
+```{r setup, echo=FALSE, message=FALSE}
+#| include: false
+library(tidyverse)
+library(sf)
+library(dukestm)
+library(lwgeom)
+library(cowplot)
+library(kableExtra)
+library(ape)
+library(spdep)
+```
+
+------------------------------------------------------------------------
+
+### Question 1
+
+*The data folder in this repository contains two csvs file called `nyc_bikes_test.csv` and `nyc_bikes_train.csv` which contain usage data, aggregated to a weekly level, of NYC Citi Bikes from Jan 2019 through Sep 2023. These data are derived from the full data available from <https://citibikenyc.com/system-data>.*
+
+*The test data consists of a contiguous 12 week chunk of 2021 and a 16 week chunk of 2022. The training data consists of all other weeks. The goal of this question is to use the training data to build a model that we will validate against the test data.*
+
+```{r}
+#| message: false
+nyc_bikes_train = read_csv("data/bikes_train.csv") |> 
+  mutate(week_index = 1:220 - 1e-8)
+
+nyc_bikes_test = read_csv("data/bikes_test.csv") |> 
+  mutate(week_index = 1:28)
+```
+
+a.  *Using the training data only, create an empirical semivariogram. Does it appear that there is structure that might benefit from the use of a GP? Explain. If so roughly estimate the parameters necessary for a squared exponential covariance model.*
+
+Yes, since we have a smooth function that has some sense of progression over time, we can try using a GP. Using very rough estimates from the semivariogram we will set $\sigma^2 = 5.05e10, l = \frac{\sqrt 3}{22} = 0.0787, \sigma^2_2 = 0.5e10$.
+
+```{r}
+m = lm(n ~ week_index, data = nyc_bikes_train)
+m_resid = data.frame(resid = m$residuals, 
+                     week_index = nyc_bikes_train$week_index)
+```
+
+```{r}
+emp_semi = emp_semivariogram(
+  m_resid, resid, week_index, bin=TRUE, 
+  binwidth = 3
+) |> 
+  mutate(
+    sv = sq_exp_sv(d, sigma2 = 5.05e10, l = sqrt(3)/22, sigma2_w = 0.5e10)
+  )
+
+emp_semi |> 
+  ggplot(aes(x=d, y=gamma)) +
+  geom_line(aes(y=sv), color='red') +
+  geom_point() + 
+  labs(title = 'Emp. Semivariogram, NYC Bikes Data')
+```
+
+b.  *Use the `gplm()` function to fit an appropriate model to these data, pick reasonable values for the priors and create a diagnostic plot to show your chains have converged.*
+
+As noted in class, the default priors for $\sigma^2$ and $\tau^2$ we will usually leave alone. I've also used an exponential covariance, and set the starting value of $\phi$ based on the sill in the plot above. And I set the uniform prior to exclude values outside of a year, since that's as wide as we would consider the covariance valid.
+
+The trace plots look good so it looks like the chains converged. I'm also only using 2 chains here for the sake of time.
+
+```{r, cache = TRUE}
+
+m = gplm(
+  n ~ 1,
+  data = nyc_bikes_train, 
+  coords = "week_index",
+  cov_model = "gaussian",
+  starting=list(
+    "phi" = sqrt(3)/22, "sigma.sq"=5.05e10, "tau.sq"=0.5e10
+  ),
+  priors=list(
+    "phi.unif"=c(sqrt(3)/52, sqrt(3)/1),
+    "sigma.sq.ig"=c(2, 1), 
+    "tau.sq.ig"=c(2, 1)
+  ),
+  thin=10, 
+  chains=2
+)
+
+plot(m)
+```
+
+c.  *Visually show the predictive performance of your model by overlaying the training data with a ribbon plot of the posterior predictive intervals and mean.*
+
+```{r}
+p = predict(m, 
+            newdata = nyc_bikes_train |> mutate(week_index = week_index - 1e-8), 
+            coords = 'week_index', 
+            thin=5)
+
+p |> 
+  tidybayes::gather_draws(y[i]) |> 
+  ggplot(aes(x = i/max(i), y = .value)) + 
+  tidybayes::stat_lineribbon(alpha = 0.25) + 
+  geom_line(data = nyc_bikes_train |> arrange(week_index), 
+            aes(x = week_index / 220, y = n), color= 'red')
+```
+
+d.  *Calculate the RMSE and 90% empirical coverage of your fitted model for the training data.*
+
+```{r}
+p_train = predict(m, 
+            newdata = nyc_bikes_train |> 
+              mutate(week_index = week_index - 1e-8), 
+            coords = 'week_index', 
+            thin=5)
+
+p_post_train = p_train |> 
+  tidybayes::gather_draws(y[i]) |> 
+  tidyr::expand_grid(nyc_bikes_train)
+
+rmse = p_post_train |>  
+  group_by() |> 
+  summarize(
+    rmse = sqrt(sum((n - .value)^2)/ n())
+  ) |> pull() 
+
+interval = p_post_train |> 
+    group_by() |> 
+    tidybayes::mean_hdi(
+      .value, .width = 0.9
+    )
+
+lb = interval$.lower
+ub = interval$.upper
+
+cover = nyc_bikes_train |> 
+  mutate(contain = n >= lb & n <= ub) |> 
+  group_by() |> 
+  summarize(
+    cover = mean(contain)
+  ) |> pull() 
+
+cat("Train RMSE: ", rmse, "\n")
+cat("Train Emp. Coverage: ", cover)
+```
+
+e.  *Calculate the RMSE and 90% empirical coverage of your fitted model for block 1 of the test data.*
+
+```{r}
+
+block1 = nyc_bikes_test |> filter(block == 1)
+
+p_test_1 = predict(m, 
+            newdata = block1, 
+            coords = 'week_index', 
+            thin=5)
+
+p_post_test_1 = p_test_1 |> 
+  tidybayes::gather_draws(y[i]) |> 
+  tidyr::expand_grid(block1)
+
+rmse = p_post_test_1 |>  
+  group_by() |> 
+  summarize(
+    rmse = sqrt(sum((n - .value)^2)/ n())
+  ) |> pull() 
+
+interval = p_post_test_1 |> 
+    group_by() |> 
+    tidybayes::mean_hdi(
+      .value, .width = 0.9
+    )
+
+lb = interval$.lower
+ub = interval$.upper
+
+cover = block1 |> 
+  mutate(contain = n >= lb & n <= ub) |> 
+  group_by() |> 
+  summarize(
+    cover = mean(contain)
+  ) |> pull() 
+
+cat("Test Block 1 RMSE: ", rmse, "\n")
+cat("Test Block 1: ", cover)
+```
+
+f.  *Calculate the RMSE and 90% empirical coverage of your fitted model for block 2 of the test data.*
+
+```{r}
+
+block2 = nyc_bikes_test |> filter(block == 2)
+
+p_test_2 = predict(m, 
+            newdata = block2, 
+            coords = 'week_index', 
+            thin=5)
+
+p_post_test_2 = p_test_2 |> 
+  tidybayes::gather_draws(y[i]) |> 
+  tidyr::expand_grid(block2)
+
+rmse = p_post_test_2 |>  
+  group_by() |> 
+  summarize(
+    rmse = sqrt(sum((n - .value)^2)/ n())
+  ) |> pull() 
+
+interval = p_post_test_2 |> 
+    group_by() |> 
+    tidybayes::mean_hdi(
+      .value, .width = 0.9
+    )
+
+lb = interval$.lower
+ub = interval$.upper
+
+cover = block2 |> 
+  mutate(contain = n >= lb & n <= ub) |> 
+  group_by() |> 
+  summarize(
+    cover = mean(contain)
+  ) |> pull() 
+
+cat("Test Block 2 RMSE: ", rmse, "\n")
+cat("Test Block 2: ", cover)
+```
+
+g.  *Compare the predictive performance of your model from (d), (e), and (f), comment on what these results tell you about the model's generalizability and ability to forecast.*
+
+If my model is correct, we have the following intervals, RMSE, and Coverage:
+
+1.  Train = \[138025.9, 834472.1\]
+    -   RMSE: 308,344
+    -   Coverage: 0.895
+2.  Test Block 1 = \[102672.3, 397305\]
+    -   RMSE: 260,714
+    -   Coverage: 0.417
+3.  Test Block 2 = \[292930.6, 593713\]
+    -   RMSE: 379,834
+    -   Coverage: 0.25
+
+Based purely on the coverages, it looks like we're fitting quite poorly so I wouldn't trust this model.
+
+------------------------------------------------------------------------
+
+### Question 2
+
+*The data folder in this repository contains two shapefiles describing congressional district boundaries for the 112th (2011-2013) and 114th (2015-2017) congress.*
+
+```{r}
+nc112 = read_sf('data/nc_districts112/', quiet=TRUE)
+nc114 = read_sf('data/nc_districts114/', quiet=TRUE)
+```
+
+a.  *A basic metric of district compactness is the isoperimetric quotient, which is defined as the ratio of a shape's area to the area of a circle that has the same perimeter. Calculate and report this metric for all districts in both data sets. Also assesses if average compactness changed between the 112th and 114th congress and if so in what direction?*
+
+We'll calculate area as the following:
+
+$$
+A = \frac{c^2}{4\pi}
+$$ And the isoperimetric quotients for both districts are displayed below. The mean difference is displayed in the next code chunk.
+
+```{r}
+nc112 = nc112 |> 
+  mutate(perimeter = st_length(st_cast(geometry,"MULTILINESTRING")), 
+         circ_area = perimeter^2 / (4*pi),
+         district_area = st_area(geometry),
+         iso_quotient = district_area / circ_area)
+
+nc114 = nc114 |> 
+  mutate(perimeter = st_length(st_cast(geometry,"MULTILINESTRING")),
+         circ_area = perimeter^2 / (4*pi),
+         district_area = st_area(geometry),
+         iso_quotient = district_area / circ_area)
+
+comparison = left_join(
+  nc112 |> dplyr::select(DISTRICT, iso_quotient) |> st_drop_geometry(),
+  nc114 |> dplyr::select(DISTRICT, iso_quotient) |> st_drop_geometry(), 
+  by = 'DISTRICT'
+  ) |> 
+  rename(iso_q_112 = iso_quotient.x,
+         iso_q_114 = iso_quotient.y)
+
+comparison |> kable()
+```
+
+Here we subtracts the mean of the 114th congress' isoperimetric coefficient from the 112th and see that it is larger in the 114th by 0.023.
+
+```{r}
+mean(nc112$iso_quotient) - mean(nc114$iso_quotient)
+```
+
+b.  *Using NC county boundaries (available in the `sf` package), generate a data set containing the congressional (for both the 112th and 114th congress) boundaries within Durham, Orange and Wake Counties exclusively. Plot these boundaries.*
+
+```{r}
+nc = st_read(system.file("shape/nc.shp", package="sf")) |> 
+  st_transform(nc, crs = st_crs(nc114))
+
+subset = nc |> filter(NAME %in% c('Wake', 'Orange', 'Durham'))
+
+overlap_112 = st_intersection(nc112, subset)
+overlap_114 = st_intersection(nc114, subset)
+
+p1 = ggplot() + 
+  geom_sf(data = subset) + 
+  geom_sf(data = overlap_112, col='steelblue', lwd=1) + 
+  ggtitle("112th Congressional Lines")
+
+p2 = ggplot() + 
+  geom_sf(data = subset) + 
+  geom_sf(data = overlap_114, col='salmon', lwd=1) + 
+  ggtitle("114th Congressional Lines")
+
+plot_grid(p1, p2)
+  
+```
+
+c.  *Again using the NC county boundaries, calculate the number of congressional districts in each county and the number of counties in each congressional district.*\
+
+First, I output the number of districts per count. Since there are 100, this takes up a lot of space (so you'll have to scroll a bit for the second code chunk). In the second chunk, I did the same thing but counting by district instead.
+
+```{r}
+combined_112 = st_join(nc, nc112) 
+combined_114 = st_join(nc, nc114)
+
+count_112 = combined_112 |> 
+  group_by(NAME) |> 
+  summarize(num_districts = n_distinct(DISTRICT))
+
+count_114 = combined_114 |> 
+  group_by(NAME) |> 
+  summarize(num_districts = n_distinct(DISTRICT))
+
+comparison = left_join(
+  count_112 |> dplyr::select(NAME, num_districts) |> st_drop_geometry(),
+  count_114 |> dplyr::select(NAME, num_districts) |> st_drop_geometry(), 
+  by = 'NAME'
+  ) |> 
+  rename(num_distr_112 = num_districts.x,
+         num_distr_114 = num_districts.y)
+
+comparison |> kable() 
+```
+
+Counting counties by districts here:
+
+```{r}
+count_c_112 = combined_112 |> 
+  group_by(DISTRICT) |> 
+  summarize(num_counties = n_distinct(NAME))
+
+count_c_114 = combined_114 |> 
+  group_by(DISTRICT) |> 
+  summarize(num_counties = n_distinct(NAME))
+
+comparison_c = left_join(
+  count_c_112 |> dplyr::select(DISTRICT, num_counties) |> st_drop_geometry(),
+  count_c_114 |> dplyr::select(DISTRICT, num_counties) |> st_drop_geometry(), 
+  by = 'DISTRICT'
+  ) |> 
+  rename(num_county_112 = num_counties.x,
+         num_county_114 = num_counties.y)
+
+comparison_c |> kable() 
+```
+
+d.  *Create a map showing which regions of NC had their congressional district change between the 112th and 114th congress.*
+
+I'm interpreting 'region' here to mean a rough geographical area and not something formal, since we don't have a region identifier column in the data. The easiest thing is to just plot the 112th and 114th congress' maps against each other. Below, the 112th is purple and the 114th is blue. Visually, every region of NC had districts change between the two, south / west / east / etc.
+
+```{r}
+ggplot() + 
+  geom_sf(data = nc112, col='purple', lwd=0.6) + 
+  geom_sf(data = nc114, fill=NA, col='blue', lwd=0.6)
+```
+
+------------------------------------------------------------------------
+
+### Question 3
+
+![](network.png)
+
+a.  *Derive a weight matrix using the network diagram above. Connected nodes should be indicated with a `1` all other entries should be 0.*
+
+    Also noting that in the slides, a weight matrix referred to a scaled weight matrix. What's described in the question sounds like an adjacency matrix (with 1/0 entries) so I have used the scaled weight matrix. An adjacency matrix would be the same, just replace every non-zero entry with 1.
+
+$$
+W = \begin{bmatrix}
+0 & 0.5 & 0 & 0 & 0.5 & 0 \\
+0.33 & 0 & 0.33 & 0 & 0.33 & 0 \\
+0 & 0.5 & 0 & 0.5 & 0 & 0 \\ 
+0 & 0 & 0.33 & 0 & 0.33 & 0.33 \\ 
+0.33 & 0.33 & 0 & 0.33 & 0 & 0 \\
+0 & 0 & 0 & 1 & 0 & 0 \\
+\end{bmatrix}
+$$
+
+and noting that $\mathbf{W = D^{-1}A}$ where $\mathbf{D^{-1}} = \text{diag}(1/|N(s_i))$
+
+b.  *Given that* $\boldsymbol\sigma^2 = (\sigma_1^2, \sigma_2^2,\ldots,\sigma_6^2)$ and $\boldsymbol\epsilon \sim \mathcal{N}(\boldsymbol{0},\, \boldsymbol{I}\,\boldsymbol\sigma^2)$ derive the value of $\boldsymbol\Sigma^{-1}$ for a CAR model.
+
+$$
+\sigma^2\left(\begin{pmatrix}2&0&0&0&0&0\\ \:\:\:\:0&3&0&0&0&0\\ \:\:\:\:0&0&2&0&0&0\\ \:\:\:\:0&0&0&3&0&0\\ \:\:\:\:0&0&0&0&3&0\\ \:\:\:\:0&0&0&0&0&1\end{pmatrix}\:-\:\phi \begin{pmatrix} 0&1&0&0&1&0\\ \:\:\:\:\:1&0&1&0&1&0\\ \:\:\:\:\:0&1&0&1&0&0\\ \:\:\:\:\:0&0&1&0&1&1\\ \:\:\:\:\:1&1&0&1&0&0\\ \:\:\:\:\:0&0&0&1&0&0\end{pmatrix}\right) = 
+$$
+
+$$ 
+\boldsymbol\Sigma^{-1} = \sigma^2 \begin{pmatrix}
+2 & -\phi & 0 & 0 & -\phi & 0 \\ 
+-\phi & 3 & -\phi & 0 & -\phi & 0 \\ 
+0 & -\phi & 2 & -\phi & 0 & 0 \\ 
+0 & 0 & -\phi & 3 & -\phi & -\phi \\ 
+-\phi & -\phi & 0 & -\phi & 3 & 0 \\
+0 & 0 & 0 & -\phi & 0 & 1 \\  
+\end{pmatrix}
+$$
+
+c.  *Repeat (b) using an SAR model.*
+
+    First, I'm assuming that $\sigma^2$ is a scalar, otherwise the dimensions don't make sense.
+
+    Here I've plugged the following formula into symbolab:
+
+$$
+\begin{aligned}
+\Sigma^{-1} &= [(I - \phi D^{-1}A)^{-1}\sigma^2D^{-1}((I-\phi D^{-1}A)^{-1})^t)]^{-1}\\
+&= (I - \phi D^{-1}A)\frac{1}{\sigma^2}D(I-\phi D^{-1}A)^t\\
+\end{aligned}
+$$
+
+$$ \boldsymbol\Sigma^{-1} = \frac{1}{\sigma^2} \begin{pmatrix}
+\frac{3\phi^2 + 4}{2} & \frac{3\phi^2 -13}{6} & \frac{3\phi^2}{4} & \frac{\phi^2}{2} & \frac{3\phi^2 - 13\phi}{6} & 0 \\
+\frac{3\phi^2 -13}{6} & \frac{7\phi^2 + 27}{9} & -\frac{13\phi}{6} & \frac{5\phi^2}{9} & \frac{2\phi^2  - 18\phi}{9} & 0 \\
+\frac{3\phi^2}{4} & -\frac{13\phi}{6} & \frac{3\phi^2 + 4}{2} & -\frac{13\phi}{6} & \phi^2 & \frac{3\phi^2}{2} \\
+\frac{\phi^2}{2} & \frac{5\phi^2}{9} & -\frac{13\phi}{6} & \frac{2\phi^2 + 9}{3} & -2\phi & -\frac{10\phi}{3} \\
+\frac{3\phi^2 -13}{6} & \frac{2\phi^2  - 18\phi}{9} & \phi^2 & -2\phi & \frac{8\phi^2 + 27}{9} & \phi^2 \\
+0 & 0 & \frac{3\phi^2}{2} & -\frac{10\phi}{3} & \phi^2 & 3\phi^2 +1 \\
+\end{pmatrix}$$
+
+------------------------------------------------------------------------
+
+### Question 4
+
+*The data directory also contains data on Medicaid program quality scores for the lower 48 U.S. contiguous states in 1986. The data can be loaded as follows.*
+
+```{r}
+mc = st_read('data/medicaid1986/', quiet=TRUE, stringsAsFactors=TRUE)
+```
+
+a.  *Construct a weight matrix using adjacency as determined by shared boundaries between the states (e.g. touching).*
+
+This is stored in `W`, and since the full matrix is too large to display, the first five rows / columns are displayed.
+
+```{r}
+A = 1 * st_touches(mc, sparse=FALSE)
+W = normalize_weights(A)
+
+W[1:5, 1:5] |> kable() 
+```
+
+b.  *Using this weight matrix calculate Moran's I or Geary's C using the `PQS` column in the data. Do your results suggest autocorrelation? If so what kind?*
+
+The null hypothesis for Moran's I is that the data is randomly distributed. We have a p-value \<\< 0.05, so we will reject the null and conclude that there is positive spatial autocorrelation based on the observed value of Moran's I compared to the expected value.
+
+```{r}
+ape::Moran.I(mc$PQS, weight = W)
+```
+
+c.  *Fit a CAR model for `PQS` using the weight matrix from (a) Does your fitted value of* $\phi$ agree with your conclusion in (b)?
+
+Yes, here we have $\phi = 0.177$ (spdep calls it $\lambda$) which results in a p-value \<\< 0.05, so again we reject the null that there is no spatial autocorrelation.
+
+```{r}
+listW = spdep::mat2listw(A)
+
+mc_car = spatialreg::spautolm(
+  formula = PQS ~ 1, 
+  data = mc, 
+  listw = listW, 
+  family = "CAR"
+)
+
+summary(mc_car)
+```
+
+d.  *Calculate residuals for each state, comment on where the model fits well and where it does not. Does it appear that there still may be unaccounted for spatial structure?*
+
+It looks like there's still some spatial structure, maybe around California/Nevada/Arizona especially, since those have very large / very negative residuals. In the next chunk I've calculated Moran's I on the residuals, and this time we have -.209. This is better than the raw data, but there's still some variation.
+
+```{r}
+mc$car_resid = residuals(mc_car)
+
+mc |> 
+  dplyr::select(car_resid) |>
+  ggplot() + 
+  geom_sf(aes(fill=car_resid)) + 
+  scale_fill_viridis_c()
+```
+
+```{r}
+ape::Moran.I(mc$car_resid, weight = W)
+```
+
+------------------------------------------------------------------------
+
+### Question 5
+
+*In this question you will repeat the analysis in Question 4 after aggregating the medicaid data to a regional level. You will have to merge the geometries using their `SUB_REGION` value (e.g. California, Oregon, and Washington should be a single unioned multipolygon for the Pacific region) as well as aggregate `PQS` values (using the average of the included states).*
+
+a.  *Create an updated sf objected containing the merged regional data.*
+
+```{r}
+
+mc_merge = mc |> 
+      group_by(Region) |> 
+      summarize(
+        avg_PQS = mean(PQS)
+      )
+```
+
+b.  *Use a choropleth plot to display the regional values of `PQS`.*
+
+```{r}
+mc_merge |> 
+  ggplot() + 
+  geom_sf(aes(fill = avg_PQS))
+```
+
+c.  *Construct a weight matrix using adjacency as determined by shared boundaries between the regions.*
+
+Again just displaying the first 5 rows and columns of the weight matrix since it's large, but following the same process as the previous question.
+
+```{r}
+A = 1 * st_touches(mc_merge, sparse=FALSE)
+W = normalize_weights(A)
+
+W[1:5, 1:5] |> kable() 
+```
+
+d.  *Using this weight matrix calculate Moran's I or Geary's C using the `PQS` column in the data. Do your results suggest autocorrelation? If so what kind?*
+
+Here we get a Moran's I = 0.146, since this is larger (and positive) than the expected value, we conclude there is positive autocorrelation among the observations.
+
+```{r}
+ape::Moran.I(mc_merge$avg_PQS, weight = W)
+```
+
+e.  *Fit a CAR model for `PQS` using the weight matrix from (a) Does your fitted value of* $\phi$ agree with your conclusion in (b)?
+
+This actually contradicts our conclusion because the p-value here is not significant.
+
+```{r}
+listW = spdep::mat2listw(A)
+
+mc_merge_car = spatialreg::spautolm(
+  formula = avg_PQS ~ 1, 
+  data = mc_merge, 
+  listw = listW, 
+  family = "CAR"
+)
+
+summary(mc_merge_car)
+```
+
+f.  *Calculate residuals for each region and comment on where the model fits well and where it does not. Does it appear that there still may be unaccounted for spatial structure?*
+
+Visually, the data looks randomly dispersed, although the residuals are pretty large / very negative. However, calculating Moran's I again in the next chunk, we're much closer to the expected value so there's probably not any more spatial structure.
+
+```{r}
+mc_merge$car_resid = residuals(mc_merge_car)
+
+mc_merge |> 
+  dplyr::select(car_resid)|>
+  ggplot() + 
+  geom_sf(aes(fill=car_resid)) + 
+  scale_fill_viridis_c()
+```
+
+```{r}
+ape::Moran.I(mc_merge$car_resid, weight = W)
+```

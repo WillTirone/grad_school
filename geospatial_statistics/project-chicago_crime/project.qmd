@@ -1,0 +1,516 @@
+---
+title: "Crime in Chicago"
+subtitle: "Sta 344/644 - Final Project"
+format: 
+  html:
+    self-contained: true
+author:
+- Will Tirone
+- Eli Gnesin
+- Natalie Smith
+bibliography: references.bib
+---
+
+```{r setup, include = FALSE}
+library(tidyverse)
+library(sf)
+library(jsonlite)
+library(httr)
+library(stringr)
+library(dukestm)
+library(patchwork)
+library(htmlTable)
+```
+
+## Introduction
+
+Searching "Chicago" on foxnews.com yields dozens of links to news stories that point to one favorite Conservative talking point: Chicago is a crime-ridden wasteland. Articles about [fentanyl](https://www.foxnews.com/us/chicago-gang-leader-admits-repeatedly-attempting-provide-money-isis-trafficking-fentanyl), [robbery](https://www.foxnews.com/us/chicago-area-couple-enlisted-children-in-retail-theft-scheme-at-suburban-macys-store-authorities-say), and [mass shootings](https://www.foxnews.com/us/chicago-bloody-weekend-sees-over-50-shot-including-14-year-old-boy-playground-5-drag-racing-incident) cover the front page of the website.
+
+It is often quoted in Conservative circles that "Crime is high in Chicago!" or "Be careful walking around Chicago!" We want to focus on these ideas, and using crime data from Chicago, determine the validity of these statements:
+
+1.  Is crime focused in certain areas in Chicago?
+
+2.  Is there a different spatial spread to different types of crime in Chicago?
+
+3.  Are certain demographics more likely to be exposed to higher rates of crime?
+
+For this project, we are considering crime data from Chicago from the calendar year 2023 (From January 1 through November 29). The ward boundaries are the Chicago wards in use beginning with the May 2023 Municipal elections, and which were approved in May 2022. Both the Ward boundaries [@Chicago_wards] and the crime data [@Chicago_crimes] were found in the Chicago Data Portal, an open and freely available data portal provided by the City of Chicago. For the demographic data, a [WTTW article](https://news.wttw.com/2022/05/16/chicago-city-council-votes-43-7-approve-new-ward-map-after-racially-polarizing-debate) from May 2022, discussing the approved map, linked to the open comments page from the City of Chicago from during the approval process [@Cherone_2022]. This map included a table of racial demographics by ward, which we transposed to a CSV file and cleaned in Python before including here.
+
+### Load Data
+
+```{r, message=FALSE}
+
+# Old Wards (which we did not use)
+wards = read_sf('data/geo_export_9b323e7f-fa71-4336-97b1-1fc3c68a1646.shp')
+wards = st_transform(wards, crs = 4326)
+
+# New Wards
+new_wards = read_sf("data/Boundaries_-_Wards__2023-__20231212.csv")
+new_wards = new_wards %>%
+  select(Ward, the_geom) %>%
+  mutate(geometry = st_as_sfc(the_geom, crs = 4326)) %>%
+  select(-the_geom) %>%
+  st_as_sf()
+
+# Read in the ward demographics data file
+ward_demo = read_csv("data/cleaned_ward_demographics.csv") %>%
+  select(-`...1`) %>%
+  mutate(Ward = as.character(Ward))
+
+# Join the demographic data to the ward geometries
+joined_wards = new_wards %>%
+  left_join(ward_demo, by = c("Ward" = "Ward"))
+
+# crime data 
+crimes = read.csv('data/crime_data.csv') |> 
+  filter(!(is.na(LATITUDE)),
+         !(is.na(LONGITUDE))) |> 
+  st_as_sf(coords = c("LONGITUDE","LATITUDE"), crs = 4326)
+
+# Filter to 2023 crimes only
+crimes_2023 = crimes %>%
+  filter(str_detect(DATE..OF.OCCURRENCE, "2022", negate = TRUE))
+```
+
+## Methods / Implementation
+
+After loading in the data, the first question we want to explore is about the overall spread of crime in Chicago. First, we want to collect an overall count of crime by ward, and then map the count of crimes by ward in the dataset:
+
+```{r}
+crime_wards = crimes_2023 %>%
+  as_tibble() %>%
+  count(WARD) %>%
+  arrange(desc(n)) %>%
+  mutate(Count = n,
+         Ward = WARD) %>%
+  select(Ward, Count)
+
+crime_wards_2 <- cbind(crime_wards[1:10, ], crime_wards[11:20, ],
+                       crime_wards[21:30, ], crime_wards[31:40, ],
+                       crime_wards[41:50, ])
+
+htmlTable(crime_wards_2,
+          cgroup = c("Top 10 Wards", "2nd 10 Wards",
+                     "Middle 10 Wards", "4th 10 Wards",
+                     "Bottom 10 Wards"),
+          n.cgroup = c(2, 2, 2, 2, 2),
+          rnames = FALSE)
+
+```
+
+```{r}
+joined_wards %>%
+  left_join(crimes_2023 %>%
+              as_tibble() %>%
+              count(WARD) %>%
+              mutate(WARD = as.character(WARD)),
+            by = c("Ward" = "WARD")) %>%
+  ggplot() +
+  geom_sf(aes(fill = n)) +
+  scale_fill_viridis_c() +
+  labs(title = "Crimes in Chicago By Ward (2023)",
+       fill = "Number of Crimes")
+```
+
+From this plot, there does appear to be some geographic or spatial correlation with the "amount" of crime in a ward. The primary hotspots appear to be in South Chicago, with the highest hotspots being in central Chicago wards 27 and 28. Since there is clear visual evidence of spatial correlation, we can check Moran's I to confirm such correlation exists before proceeding to model overall crime in Chicago by ward. The goal is to look at the overall spread of crime, to compare with the spread of specific types of crimes in the dataset.
+
+```{r}
+weights = 1*st_touches(joined_wards, sparse = F)
+norm_weight = normalize_weights(weights)
+
+num_crimes = joined_wards %>%
+  left_join(crimes_2023 %>%
+              as_tibble() %>%
+              count(WARD) %>%
+              mutate(WARD = as.character(WARD)),
+            by = c("Ward" = "WARD")) %>%
+  mutate(Ward = as.numeric(Ward)) %>%
+  select(Ward, n)
+
+overall_moran = ape::Moran.I(num_crimes$n, weight = norm_weight)
+
+data.frame(Observed = round(overall_moran$observed, 5),
+           Expected = round(overall_moran$expected, 5),
+           SD = round(overall_moran$sd, 5),
+           P_value = signif(overall_moran$p.value, 4)) %>%
+  htmlTable(caption = "Overall Moran's I Results", rnames = FALSE)
+```
+
+From Moran's I, there is clear positive spatial correlation with respect to the overall amount of crime by ward. We can now use a CAR model to attempt to model this spatial relationship and look for wards with outlier counts of crime (based on their surrounding wards):
+
+```{r, message=F, warning=F}
+crime_car = spatialreg::spautolm(
+  formula = n ~ 1, data = num_crimes, 
+  listw = spdep::mat2listw(weights), 
+  family = "CAR"
+) 
+
+# Create a cloropleth map of residuals by ward
+num_crimes %>%
+  mutate(resid = residuals(crime_car)) %>%
+  ggplot() +
+  geom_sf(aes(fill = resid)) +
+  labs(title = "Residual Cloropleth plot by ward",
+       fill = "Residual") +
+  scale_fill_gradient2(low = "blue", high = "orange", mid = "white",
+                       midpoint = 0)
+```
+
+There is clearly still structure in the residuals above. This is evident because the high residuals appear in the same regions that had high crime counts (in the center and south of the city), and the low residuals appear in the lower crime count areas in the north of the city.
+
+#### Types of Crime
+
+Of interest are the types of crimes and whether or not they also have spatial autocorrelation. Below we examine three categories, burglary / theft / robbery, assault / battery, and homicide. An alternative direction for future work could be examining this by violent vs. non-violent crimes.
+
+#### Burglary / Theft / Robbery
+
+Below we see the highest crimes in the Millenium Park area. There are a lot of stores and tourist activity in this area, so it makes sense. Compared to the general crime map above, we see a pretty distinct difference here - more crimes of this type are taking place in this area even considering the lower amount of crime it has in general.
+
+```{r}
+crimesofinterest = c('BURGLARY', 'THEFT', 'ROBBERY')
+
+#Theft/Burglary 
+joined_wards %>%
+  left_join(crimes_2023 %>%
+              filter(PRIMARY.DESCRIPTION %in% crimesofinterest) %>% 
+              as_tibble() %>%
+              count(WARD) %>%
+              mutate(WARD = as.character(WARD)),
+            by = c("Ward" = "WARD")) %>%
+  ggplot() +
+  geom_sf(aes(fill = n)) +
+  scale_fill_viridis_c() +
+  labs(title = "Theft in Chicago, 2023",
+       subtitle = 'Burglary, Theft, and Robbery',
+       fill = "Number of Crimes")
+```
+
+```{r, include = FALSE}
+
+# plot to output later
+p1 = joined_wards %>%
+  left_join(crimes_2023 %>%
+              filter(PRIMARY.DESCRIPTION %in% crimesofinterest) %>% 
+              as_tibble() %>%
+              count(WARD) %>%
+              mutate(WARD = as.character(WARD)),
+            by = c("Ward" = "WARD")) %>%
+  ggplot() +
+  geom_sf(aes(fill = n)) +
+  scale_fill_viridis_c() +
+  labs(title = "Burglary, Theft, \n and Robbery",
+       fill = "Number of Crimes") + 
+  theme(legend.position="none", axis.text.x = element_blank(),
+        axis.ticks.x = element_blank(), axis.text.y = element_blank(),
+        axis.ticks.y = element_blank())
+```
+
+#### Assault / Battery
+
+**Assault** refers to the wrong act of causing someone to reasonably fear imminent harm, and **battery** refers to the actual wrong act of physically harming someone. Again we see higher levels in the central and southern areas of the city. There are hotspots in Humboldt Park, United Center, and the West Loop.
+
+```{r}
+#Assault/Battery
+crimesofinterest = c('BATTERY', 'ASSAULT')
+
+joined_wards %>%
+  left_join(crimes_2023 %>%
+              filter(PRIMARY.DESCRIPTION %in% crimesofinterest) %>% 
+              as_tibble() %>%
+              count(WARD) %>%
+              mutate(WARD = as.character(WARD)),
+            by = c("Ward" = "WARD")) %>%
+  
+  ggplot() +
+  geom_sf(aes(fill = n)) +
+  scale_fill_viridis_c() +
+  labs(title = "Assault and Battery in Chicago, 2023",
+       fill = "Number of Crimes")
+```
+
+```{r, include = FALSE}
+
+# plot to output later
+p2 = joined_wards %>%
+  left_join(crimes_2023 %>%
+              filter(PRIMARY.DESCRIPTION %in% crimesofinterest) %>% 
+              as_tibble() %>%
+              count(WARD) %>%
+              mutate(WARD = as.character(WARD)),
+            by = c("Ward" = "WARD")) %>%
+  
+  ggplot() +
+  geom_sf(aes(fill = n)) +
+  scale_fill_viridis_c() +
+  labs(title = "Assault",
+       fill = "Number of Crimes") + 
+  theme(legend.position="none", axis.text.x = element_blank(),
+        axis.ticks.x = element_blank(), axis.text.y = element_blank(),
+        axis.ticks.y = element_blank())
+```
+
+#### Homicide
+
+Last, we look at homicides. When considering a city or neighborhood 'dangerous', hearing gunshot(s) or witnessing homicides significantly affects public perception of an area. Below, homicides are concentrated in the middle ward that we see similar to other crime types. The hotspots here are in Humbolt Park, United Center/West Loop, and Garfield Park.
+
+```{r}
+#HOMICIDE
+joined_wards %>%
+  left_join(crimes_2023 %>%
+              filter(PRIMARY.DESCRIPTION == 'HOMICIDE') %>% 
+              as_tibble() %>%
+              count(WARD) %>%
+              mutate(WARD = as.character(WARD)),
+            by = c("Ward" = "WARD")) %>% 
+  mutate(n = ifelse(is.na(n), 0, n)) %>%  #replace NAs with 0
+  ggplot() +
+  geom_sf(aes(fill = n)) +
+  scale_fill_viridis_c() +
+  labs(title = "Homicide in Chicago, 2023",
+       fill = "Number of Crimes")
+```
+
+```{r}
+p3 = joined_wards %>%
+  left_join(crimes_2023 %>%
+              filter(PRIMARY.DESCRIPTION == 'HOMICIDE') %>% 
+              as_tibble() %>%
+              count(WARD) %>%
+              mutate(WARD = as.character(WARD)),
+            by = c("Ward" = "WARD")) %>%
+  mutate(n = ifelse(is.na(n), 0, n)) %>%  #replace NAs with 0
+  ggplot() +
+  geom_sf(aes(fill = n)) +
+  scale_fill_viridis_c() +
+  labs(title = "Homicide",
+       fill = "Number of Crimes") + 
+  theme(legend.position="none", axis.text.x = element_blank(),
+        axis.ticks.x = element_blank(), axis.text.y = element_blank(),
+        axis.ticks.y = element_blank())
+```
+
+Displaying the plots side by side, we notice a similar strip of crime. The city center seems to be the most dangerous, both for overall crime and when looking at assault and homicide.
+
+```{r}
+#heatmap of crime hotspots
+p = p1 + p2 + p3
+p + plot_annotation(title = 'Crime Heatmap')
+```
+
+We can also look at how crime counts are related to ward population - we'd expect more crime where there are more people (ie, more urban parts of Chicago).
+
+```{r}
+#population map
+p_pop = joined_wards %>%
+  left_join(crimes_2023 %>%
+              filter(PRIMARY.DESCRIPTION == 'HOMICIDE') %>% 
+              as_tibble() %>%
+              count(WARD) %>%
+              mutate(WARD = as.character(WARD)),
+            by = c("Ward" = "WARD")) %>% 
+   mutate(n = ifelse(is.na(n), 0, n)) %>%  #replace NAs with 0
+  ggplot() +
+  geom_sf(aes(fill = total_pop)) +
+  scale_fill_viridis_c() +
+  labs(title = "Population Map",
+       fill = "Number of People") + 
+  theme(legend.position="none", axis.text.x = element_blank(),
+        axis.ticks.x = element_blank(), axis.text.y = element_blank(),
+        axis.ticks.y = element_blank())
+
+#side by side comparison
+p1 + p_pop
+p2 + p_pop
+p3 + p_pop
+```
+
+Surprisingly, the crime doesn't appear to occur in high-population zones. Looking at Burglarly, theft, and robbery, there is one district that is relatively high in both crime and population (Ward 27), but crime is not seen much in higher population regions. Looking at the Assault and the Homicide counts, both graphics appear to be inversely related to the ward population, that is lower populated regions see higher counts of assault and battery crimes.
+
+#### Spatial Correlations
+
+Below, we calculate Moran's I for the 3 different groupings of crime we looked at. The highest spatial autocorrelation was Assault/Battery with an observed statistic of 0.54. The lowest was homicide at 0.47. Nevertheless, all crime-types in Chicago show positive spatial autocorrelation, and the p-values for each group's Moran's I indicates that this positive spatial autocorrelation is statistically significant.
+
+```{r}
+# calculate Moran's I for burglary / theft / robbery
+num_crimes = joined_wards %>%
+  left_join(crimes_2023 %>%
+          filter(PRIMARY.DESCRIPTION %in% c('BURGLARY', 'THEFT', 'ROBBERY')) %>% 
+          as_tibble() %>%
+          count(WARD) %>%
+          mutate(WARD = as.character(WARD)),
+        by = c("Ward" = "WARD")) %>%
+  mutate(Ward = as.numeric(Ward)) %>%
+  select(Ward, n)
+
+btr_moran = ape::Moran.I(num_crimes$n, weight = norm_weight)
+```
+
+```{r}
+# Moran's I for assault and battery
+num_crimes = joined_wards %>%
+  left_join(crimes_2023 %>%
+              filter(PRIMARY.DESCRIPTION %in% c('BATTERY', 'ASSAULT')) %>% 
+              as_tibble() %>%
+              count(WARD) %>%
+              mutate(WARD = as.character(WARD)),
+            by = c("Ward" = "WARD")) %>%
+  mutate(Ward = as.numeric(Ward)) %>%
+  select(Ward, n)
+
+ab_moran = ape::Moran.I(num_crimes$n, weight = norm_weight)
+```
+
+```{r}
+# Moran's I for homicide
+num_crimes = joined_wards %>%
+  left_join(crimes_2023 %>%
+              filter(PRIMARY.DESCRIPTION == 'HOMICIDE') %>% 
+              as_tibble() %>%
+              count(WARD) %>%
+              mutate(WARD = as.character(WARD)),
+            by = c("Ward" = "WARD")) %>%
+  mutate(n = ifelse(is.na(n), 0, n)) %>%  #replace NAs with 0
+  mutate(Ward = as.numeric(Ward)) %>%
+  select(Ward, n)
+
+h_moran = ape::Moran.I(num_crimes$n, weight = norm_weight)
+```
+
+```{r}
+# Create a table of the Moran's I for the crime types
+tibble(Crime = character(),
+       Observed = double(),
+       Expected = double(),
+       SD = double(),
+       P_value = double()) %>%
+  add_row(Crime = c("Overall", "Burglary/Theft/Robbery", 
+                    "Assault/Battery", "Homicide"),
+          Observed = c(round(overall_moran$observed, 5),
+                       round(btr_moran$observed, 5), 
+                       round(ab_moran$observed, 5),
+                       round(h_moran$observed, 5)),
+          Expected = c(round(overall_moran$expected, 5),
+                       round(btr_moran$expected, 5),
+                       round(ab_moran$expected, 5),
+                       round(h_moran$expected, 5)),
+          SD = c(round(overall_moran$sd, 5),
+                 round(btr_moran$sd, 5),
+                 round(ab_moran$sd, 5),
+                 round(h_moran$sd, 5)),
+          P_value = c(signif(overall_moran$p.value, 4),
+                      signif(btr_moran$p.value, 4),
+                      signif(ab_moran$p.value, 4),
+                      signif(h_moran$p.value, 4))
+          )%>%
+  htmlTable(caption = "Moran's I Results By Crime Type", rnames = FALSE)
+```
+
+#### Demographic Spread
+
+One of the questions we originally asked is whether there was overlap between certain demographic groups and the levels of various crimes. For this, we can visualize the dominant racial makeup of districts and compare that map to the overall crime map and the specific subset maps above.
+
+Looking at the below map, in comparison with the maps above, tells a mixed story. The districts that are hotspots on all the maps above are districts 27 and 28. Ward 27 covers the West Loop and has no majority (it is the "U"-shaped district), and Ward 28, immediately below, is a black majority district that includes Garfield Park. In terms of thefts, the ward with the most thefts is Ward 42, a white majority ward covering River North and the Willis Tower.
+
+Beyond that, there appears to be higher counts of assaults and homicides in the black majority wards in South Chicago. However, we cannot make any causal assessments about this trend and there are significant socioeconomic and political confounding variables in this data For example, it could be that more crimes are reported in these wards due to higher rates of policing with underlying political reasons.
+
+Looking at this map compared to the residuals from the overall CAR model above, these wards also have some of the higher residuals on the map. This means the CAR model is unable to accurately predict the number of crimes and underestimates these wards.
+
+```{r}
+joined_wards %>%
+  mutate(dist_type = case_when(total_white_per > 50 ~ "White Majority",
+                               total_black_per > 50 ~ "Black Majority",
+                               total_asian_per > 50 ~ "Asian Majority",
+                               total_hispanic_per > 50 ~ "Hispanic Majority",
+                               TRUE ~ "No Majority")) %>%
+  ggplot() +
+  geom_sf(aes(fill = dist_type)) +
+  labs(title = "Racial Majority by Ward",
+       fill = "Type")
+```
+
+It appears that black individuals are exposed to more overall crime. To further investigate this, we overlayed the top 3 and top 5 wards with the most overall crime on top of areas where the population has a larger share of black residents than residents of any other race.
+
+```{r}
+# pull out columns to take max over 
+percents = joined_wards[, c('total_black_per', 'total_white_per', 
+                        'total_hispanic_per', 'total_asian_per')] |> 
+  st_drop_geometry()
+
+# find max race percentage 
+# Used ChatGPT for regex here 
+dat = joined_wards |> 
+  mutate(majority = str_extract(colnames(percents)[apply(percents, 1, which.max)], 
+                                "(?<=_)(.*)(?=_)"))
+
+#top 3, 5 highest overall crime wards
+crime_counts = joined_wards %>%
+  left_join(crimes_2023 %>%
+            as_tibble() %>%
+            count(WARD) %>%
+            mutate(WARD = as.character(WARD)),
+            by = c("Ward" = "WARD"))
+
+dat_top3 = crime_counts %>% top_n(3, n)
+dat_top5 = crime_counts %>% top_n(5, n)
+```
+
+```{r}
+#Top 3 crime wards
+top3 = dat %>% ggplot() +
+  geom_sf(fill = 'grey', alpha = 0.5) +
+  geom_sf(data = dat %>% filter(majority == 'black'), 
+          fill = 'blue', alpha = 0.5) +
+  geom_sf(data = dat_top3, fill = 'red', alpha = 0.5) +
+  labs(title = "Top 3 Wards with Most Crime",
+       subtitle = 'Underlaid by Wards with large Black Pop.',
+       fill = "Type")
+
+#top 5 crime wards
+top5 = dat %>% ggplot() +
+  geom_sf(fill = 'grey', alpha = 0.5) +
+  geom_sf(data = dat %>% filter(majority == 'black'), 
+          fill = 'blue', alpha = 0.5) +
+  geom_sf(data = dat_top5, fill = 'red', alpha = 0.5) +
+  labs(title = "Top 5 Wards with Most Crime",
+       subtitle = 'Underlaid by Wards with large Black Pop.',
+       fill = "Type")
+
+top3
+top5
+```
+
+The top 3 wards with the most crime are overlapped in areas where the ward's population is mostly Black than any other race. Looking at the top 5 crime wards, there is only one ward where its residents are not mostly black (in this case, a white majority).
+
+## Discussion
+
+With the above models and plots, we can finally answer our posed questions.
+
+Is crime focused in certain areas in Chicago?
+
+-   Yes, crimes of all types are clearly focused in the central and southern areas. Something that we think news stories and headlines often miss is that crime is highly concentrated in certain areas and is not randomly spread out across the city. Whether or not a randomly drawn person could be the victim of a crime is not uniform across the city.
+
+Is there a different spatial spread to different types of crime in Chicago?
+
+-   Again, yes, there is clear spatial autocorrelation among all 3 groupings of crime we considered above. From the maps, however, there is also a distinctly different spread for Burglary/Theft/Robbery compared to Assault/Battery, Homicide, and overall crime, with more hotspots towards the shore of Lake Michigan towards the northern portion of the city than are present in the other crime types. For all crime types, however, there does appear to be commonality among the hotspots in the southern and, most prominently, the central Wards 27 and 28 of the city.
+
+Are certain demographics more likely to be exposed to higher rates of crime?
+
+-   Possibly. Unfortunately, our crime data does not include offender and victim demographic data, and the only available demographic data is racial data, so it is difficult to make conclusions in relation to specific crimes. However, in all of the maps above except for the Burglary/Theft/Robbery, the "White" and "Hispanic" majority areas in North Chicago have lower numbers of crimes and the "Black" majority areas in Central and South Chicago have a higher number of crimes.
+
+## Limitations
+
+The most significant issue is that the crimes are reported by the Chicago Police Department. In recent American history, we've seen significant divisions between the public and police as a result of high-profile cases like the killings of [Breonna Taylor](https://www.nytimes.com/article/breonna-taylor-police.html), [George Floyd](https://www.nytimes.com/2020/05/31/us/george-floyd-investigation.html), and countless others. Public trust in the police has significantly deteriorated, which calls into question the validity of the data. There are mountains of literature discussion the role race and other demographic factors play in policing that our group is not qualified to comment on, but we have to note the significant caveat that reality could be significantly different than the data.
+
+Another important limitation of our current study is that we focused specifically on three prominent types of violent crime. By count, crime types such as "Deceptive Practice" and "Criminal Damage," which may be more prevalent in other wards, were not considered in our analysis. Relatedly, although Chicago has changed its overall policing structure in recent years, their shift towards community policing [has resulted in an increase in traffic stops and searches among people of color](https://boltsmag.org/chicago-community-safety-team-policing-traffic-stops/). It is entirely possible that by specifically focusing on these crime types, we may have overlooked the impact of these stops, which are possibly not even reported, and their impact on communities.
+
+## Conclusion
+
+This is an extremely hot-button issue in the United States, but one our group believes is important to understand and make data-informed statements about. As with many things, the popular public statements about crime being high in Chicago are only a partial truth. At least according to the Chicago-reported crime data, there are certainly parts of the city with high rates of crime, but there are also significant swaths of the city that appear to have much lower rates of crime, yet which are much less popularly discussed.
+
+In a sense, this may be an easier problem to tackle than if crime were evenly distributed across the city. The work we did provides valuable information that could help city officials focus their efforts in areas that could provide the highest reductions in crime.
+
+In the future, it may be helpful to look at crime at an even finer-grained level, like block or street level to determine whether or not it is a ward-level issue or a street-level issue. In order to protect the privacy of both the individuals and the victims, the Chicago Police Department censors the actual addresses to only a block number (100s place), but it would be interesting to use this information to dig deeper into the spread of crime at this finer level.
+
+## References and Data Sources
+
+All data for crimes and ward boundaries was retrieved from the [Chicago Data Portal](https://data.cityofchicago.org/). Racial demographic data was retrieved from the [Chicago Redistricting Comment Portal](https://app.mydistricting.com/legdistricting/comments/plan/225/26).

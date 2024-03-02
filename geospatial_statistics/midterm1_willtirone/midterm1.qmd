@@ -1,0 +1,416 @@
+---
+title: "Sta 344 / 644 - Fall 2023 - Midterm 1 - Take home"
+subtitle: "Due Friday, Oct 20th by 5 pm"
+author: "Will Tirone"
+format: 
+  html:
+    self-contained: true
+---
+
+<!-- Please carefully review all rules and requirements detailed in README.md before beginning this exam. -->
+
+```{r setup}
+#| include: false
+
+library(tidyverse)
+library(feasts)
+library(fable)
+library(tsibble)
+library(GGally)
+library(yardstick)
+```
+
+------------------------------------------------------------------------
+
+**Q1** *(50 pts) We have provided a csv file, `data/aapl_revenue.csv` that contains the quarterly revenue for Apple from 1993 to 2023. Your goal will be to construct time series model(s) for these data.*
+
+a.  *(5 pts) Read these data into R and perform any necessary transformations to make them suitable for time series analysis, specifically construct a tsibble object with the appropriate index. Note that these are quarterly data and your index should reflect this.*
+
+<!-- -->
+
+1.  Used this reference: https://tsibble.tidyverts.org/reference/year-quarter.html
+2.  Data are now in a tsibble and it doesn't look like any other transformation is necessary.
+
+```{r}
+aapl = read.csv('data/aapl_revenue.csv')
+
+aapl = aapl |> 
+  mutate(quarter = yearquarter(quarter),
+         log_rev = log(revenue)) |> 
+  as_tsibble(index = quarter)
+```
+
+b.  *(5 pts) Perform some basic EDA on these data (i.e. plot them) and comment on any obvious features that you observe. Specifically address anything that you believe may directly impact your ability to model these data.*
+
+First, we notice that there is very obvious seasonality and a non-constant mean from about 2012 to 2023, and the seasonality appears to be getting stronger over time. A problematic features seems that the seasonality is non existent from 1993 to about 2005 and this period has approximately a constant mean. Then, from 2005 to 2012 there is an increasing trend with some weak seasonality.
+
+So it seems like we almost have 3 distinct patterns in this data over the past 30 years.
+
+```{r}
+aapl |> 
+  ggplot(aes(x = quarter, y = revenue)) + 
+  geom_line(color = 'steelblue', linewidth = 0.75)
+```
+
+This is also reflected in the `feasts` plot. We see a strong ACF pattern that calls for differencing, and seasonality patterns that change over time.
+
+```{r}
+feasts::gg_tsdisplay(aapl, y=revenue, plot_type = 'season')
+```
+
+c.  *(15 pts) Construct the best `ARIMA()` model you are able to using `revenue` - show your work by including any intermediate models you considered as well as a brief description of why you chose each model along the way. You are welcome to use the auto-arima to check yourself but you must show iterative model building to receive full credit.*
+
+My first initial try is below. Examining the data, the seasonality appears to be yearly, and since we have quarterly data, we set `period = 4`. This might be big sales for the Christmas season that drive AAPL's price higher annually.
+
+This model isn't terrible, but we still see some pattern in the residuals and clear pattern in the ACF. We'll use this as a starting point and compare several models in the next step.
+
+```{r}
+c = model(
+  aapl,
+  ARIMA(revenue ~ pdq(0,0,0) + PDQ(0, 1, 0, period = 4))
+)
+
+glance(c)
+```
+
+```{r}
+residuals(c) |> 
+  gg_tsdisplay(y = .resid)
+```
+
+It looks like in additional to seasonality, we might just try differencing overall. Setting `d=1` seems to improve the model quite a bit.
+
+After looking at the plot for model 2, it looks like we might improve by adding a seasonal AR component since there's more pattern in the ACF. It looks like this could be about 8 quarters, and since our period is 4 we'll set `P = 2`.
+
+Visualizing the third model below, this looks pretty good. I tried a handful of other parameters just to see what would happen, but nothing else I've tried reduces the BIC. It also looks like we have a constant mean and there's not much observable pattern in the ACF or pACF, so we're probably satisfied with this model. Though, adding this only barely reduced the BIC, so there may not be a significant difference. Still, it seems to visually reduce some pattern.
+
+```{r}
+model_compare = model(
+  aapl,
+  ARIMA(revenue ~ pdq(0,0,0) + PDQ(0, 1, 0, period = 4)),
+  ARIMA(revenue ~ pdq(0,1,0) + PDQ(0, 1, 0, period = 4)),
+  ARIMA(revenue ~ pdq(0,1,0) + PDQ(2, 1, 0, period = 4))
+)
+
+glance(model_compare)
+```
+
+Plot of our model with `d=1, D=1`. It really doesn't seem bad, but there's still some pattern in the ACF so we can try adding to the AR() component to see if we get more improvement.
+
+```{r}
+residuals(model_compare[2]) |> 
+  gg_tsdisplay(y = .resid, plot_type = 'partial')
+```
+
+And here's the plot of the model with `d = 1, D = 1, P = 2`.
+
+```{r}
+residuals(model_compare[3]) |> 
+  gg_tsdisplay(y = .resid, plot_type = 'partial')
+```
+
+Last, we'll try with automated selection. This shows a fairly different model! This gets us an even lower BIC at 666 compared to 669 for our approach above, but it seems like we did pretty well actually fitting by hand. The big thing here was seasonal and overall differencing with maybe weak effects from MA / AR.
+
+```{r}
+model( 
+  aapl, 
+  ARIMA(revenue)
+) |> 
+  report() 
+```
+
+d.  *(15 pts) Repeat part (c) but this time use `log(revenue)` as your response variable.*
+
+Interesting! We still have a clearly non-constant mean, but the log transform dampened the seasonality significantly.
+
+```{r}
+feasts::gg_tsdisplay(aapl, y=log_rev, plot_type = 'season')
+```
+
+All the models attempted are compared below.
+
+There's still some seasonality though, so we'll try `d=1` and `D=1` again. Compared to just `d=1` this offers some improvement. And plotting the second model, we try adding an AR term which gets us the lowest BIC and AICc.
+
+```{r}
+log_models = model(
+  aapl,
+  ARIMA(log_rev ~ pdq(0,1,0) + PDQ(0,0,0, period=4)),
+  ARIMA(log_rev ~ pdq(0,1,0) + PDQ(0,1,0, period=4)),
+  ARIMA(log_rev ~ pdq(4,1,0) + PDQ(0,1,0, period=4))
+)
+
+glance(log_models)
+```
+
+From this plot of the model with `pdq = (0,1,0), PDQ = (0,1,0)`, the differencing looks good and we have a constant mean with no seasonality, but there's some pattern in the ACF. Looking at the pACF we'll try AR(4).
+
+```{r}
+residuals(log_models[2]) |> 
+  gg_tsdisplay(y = .resid, plot_type = 'partial')
+```
+
+This is the plot of model 3, our final model choice with an AR(4) component.
+
+```{r}
+residuals(log_models[3]) |> 
+  gg_tsdisplay(y = .resid, plot_type = 'partial')
+```
+
+And finally we'll check with automated selection. This is very different from our model and does have a decently lower BIC so in this case we'll probably choose this one.
+
+```{r}
+model(
+  aapl, 
+  ARIMA(log_rev)
+) |> 
+  report() 
+```
+
+e.  *(10 pts) Compare the within-sample performance of your finals models from (c) and (d). The choice of metric is up to you but should be reasonable and have at least some justification.*
+
+We'll use the automated model selection models since they had a slightly lower BIC. These are:
+
+Series: revenue Model: ARIMA(1,1,1)(0,1,0)
+
+Series: log_rev Model: ARIMA(1,0,1)(1,1,1)
+
+Comparing both using RMSE, the log model clearly wins. Since the RMSE is in the same units as the response variable, it offers a convenient interpretation.
+
+If you log transform y's, predictions are on scale of log y. To fix, to compare, 
+for log y, make predict and exponentiate them.
+
+```{r}
+
+# build the models again
+log_final_model = model(aapl, ARIMA(log_rev))
+revenue_final_model = model(aapl, ARIMA(revenue))
+
+bind_rows(
+  log_final_model |> fabletools::accuracy(),
+  revenue_final_model |> fabletools::accuracy()
+)
+```
+
+------------------------------------------------------------------------
+
+**Q2** (50 pts)
+
+\*(50 pts) We have provided a csv file, `data/meps2004.csv` that contains a sample of results from the 2004 Medical Expenditure Panel Survey (MEPS), a national survey on the financing and use of medical care in the United States. Beyond the initial sample we have further removed many of the features as well as filter out respondents who reported a total expenditure of \$0.
+
+::: {.callout-note collapse="true"}
+### A brief description of the features
+
+`* exp_tot` - Total medical care expenses
+
+`* age` - Patient age
+
+`* sex` - Patient sex
+
+`* race` - Patient race
+
+`* ethnicity` - Patient ethnicity
+
+`* insurance` - Patient insurance
+
+`* education` - Patient highest level of educational attainment
+
+`* lninc` - ln(patient family income)
+
+`* region` - Region
+
+`* mcs12` - Mental health component of [SF12](https://en.wikipedia.org/wiki/SF-12)
+
+`* pcs12` - Physical health component of [SF12](https://en.wikipedia.org/wiki/SF-12)
+:::
+
+```{r}
+#| message: false
+meps = read_csv("data/meps2004.csv")
+```
+
+a.  *(5 pts) Perform some basic EDA on these data and comment on any obvious features that you observe. Specifically address anything that you believe may directly impact your ability to model these data.*
+
+My commentary is between plots on this question.
+
+First, we see that total expense is highly skewed. Maybe we should log transform this, but I won't do any transformations until later in the questions if necessary.
+
+```{r}
+meps |> 
+  ggplot(aes(x=exp_tot)) + 
+  geom_density()
+```
+
+Of course, we're very interested in the cost according to the individual's insurance. Below, it's interesting that Medicare has the highest expenditure by far, and that uninsured have the lowest. I used to work in Medicare insurance, so that's particularly interesting to me - it could be that because the individuals are older that they're spending more on medical care, or maybe they're wealthier and they're simply more able to spend on medical care. It looks like females spend a bit more than males in every category except Medicaid, with the biggest difference in private insurance, but even there it's maybe not as big of a difference as we might expect.
+
+```{r}
+meps |> 
+  group_by(insurance, sex) |> 
+  summarize(mean_price = mean(exp_tot)) |> 
+  ggplot(aes(x=insurance, y=mean_price, fill=sex)) + 
+  geom_bar(stat='identity', position='dodge') + 
+  theme_minimal()
+```
+
+We'll try a similar idea but grouping by race and with boxplots. Below, there are so many outliers at such high values that the plots are barely visible. That poses an obvious problem to modeling.
+
+```{r}
+meps |> 
+  ggplot(aes(x=insurance, y=exp_tot, fill=race)) + 
+  geom_boxplot() + 
+  theme_minimal()
+```
+
+And using the same plot but log transforming exp_tot, we can see there are low and high outliers on the Medicare and Private side.
+
+```{r}
+meps |> 
+  ggplot(aes(x=insurance, y=log(exp_tot), fill=race)) + 
+  geom_boxplot() + 
+  theme_minimal()
+```
+
+Here we see that Medicare individuals in general have worse physical and mental health and also spend more on healthcare, while privately insure individuals are healthier and spend less.
+
+```{r}
+set.seed(123)
+meps |> 
+  sample_n(1000) |> 
+  ggplot(aes(x=mcs12, y=pcs12, color=insurance, size=exp_tot)) + 
+  geom_point() 
+```
+
+b.  *(10 pts) Fit a simple linear regression model using `lm(...)` to these data predicting `totexp` using some or all of the provided features (briefly justify your choices). Examine the fit of the model and comment on any obvious issues you observe.*
+
+For simplicity, let's just throw everything into the model and see what happens.
+
+Now addressing the fit:
+
+1.  Homoscedasticity: the shape of the residuals does not seem to change across x values, so that's good.
+
+2.  Independence: we have no reason to believe the observations are not independent.
+
+3.  Normality: this assumption is definitely violated based on the Q-Q plot.
+
+4.  Linearity: the Residuals vs. Fitted plot doesn't show any patterns though does should some outliers which could be problematic.
+
+```{r}
+m1 = lm(exp_tot ~ ., data=meps)
+plot(m1, which = 1:3)
+```
+
+c.  *(10 pts) Fit a generalized linear model using `glm(..., family = gaussian(link="log"))` to these data predicting `totexp` using the same features from (b). Examine the fit of the model and comment on any obvious issues you observe.*
+
+We have the same lack of normality problem that we had in part a). In addition, the residuals are fanning out in the scale-location plot, which indicates heteroscedasticity. In addition, it looks like we may have violated the linearity assumption in the residuals vs. fitted plot, along with the same outliers we saw earlier.
+
+```{r}
+glm_gauss = glm(exp_tot ~ ., family = gaussian(link="log"), data=meps)
+plot(glm_gauss, which = 1:3)
+```
+
+Below, borrowed some code from lecture 5. It looks like the choice of residual doesn't matter at all here.
+
+```{r}
+
+f_std = broom::augment(glm_gauss, type.predict = "response") |>
+  mutate(.resid = exp_tot - .fitted)
+f_pear = broom::augment(glm_gauss, type.predict = "response", type.residuals = "pearson")
+f_dev = broom::augment(glm_gauss, type.predict = "response", type.residuals = "deviance")
+
+f_resid = bind_rows(
+  f_std  |> mutate(type = "standard"),
+  f_pear |> mutate(type = "pearson"),
+  f_dev  |> mutate(type = "deviance")
+) |>
+  mutate(type = as_factor(type))
+
+f_resid |> 
+  ggplot(aes(x=.fitted, y=.resid, color=type)) + 
+  geom_jitter(height = 0.2, alpha = 0.2) + 
+  facet_wrap(~type, ncol = 3, scale = 'free_y') + 
+  geom_smooth(se = FALSE, color = 'black')
+```
+
+d.  *(10 pts) Fit a generalized linear model using `glm(..., family = Gamma(link="log"))` to these data predicting `totexp` using the same features from (b) and (c). Examine the fit of the model and comment on any obvious issues you observe.*
+
+Again borrowing code from lecture 5. We have pretty obvious structure in the 
+residuals, so I'm not sure it's very obvious from this which model we might 
+prefer. This is a bit problematic, because I think we would expect the Gamma
+GLM to perform better than the previous two. I do think here at least we see 
+that while the residuals have structure, they at least do not continue to grow 
+over time. So tentatively, we would probably choose this model.
+
+```{r}
+glm_gamma = glm(exp_tot ~  ., family = Gamma(link="log"), data=meps)
+
+f_std = broom::augment(glm_gamma, type.predict = "response") |>
+  mutate(.resid = exp_tot - .fitted)
+f_pear = broom::augment(glm_gamma, type.predict = "response", type.residuals = "pearson")
+f_dev = broom::augment(glm_gamma, type.predict = "response", type.residuals = "deviance")
+
+f_resid = bind_rows(
+  f_std  |> mutate(type = "standard"),
+  f_pear |> mutate(type = "pearson"),
+  f_dev  |> mutate(type = "deviance")
+) |>
+  mutate(type = as_factor(type))
+
+f_resid |> 
+  ggplot(aes(x=.fitted, y=.resid, color=type)) + 
+  geom_jitter(height = 0.2, alpha = 0.2) + 
+  facet_wrap(~type, ncol = 3, scale = 'free_y') + 
+  geom_smooth(se = FALSE, color = 'black')
+```
+
+e.  *(15 pts) Compare the predictive performance of the three models from (b), (c) and (d) using a (reasonable) metric of your choice. Which model performed best and why do you think that was the case? Your answer should also include a brief discussion of any remaining limitations or deficiencies in the model(s) and their implication for prediction and/or inference.*
+
+## Conclusion
+
+It looks like the choice of family for the glm made no difference and the standard 
+linear model won in the end, at least according to RMSE and using every variable.
+
+## Which performed best? 
+
+I checked other metrics,
+like MSE / MAE / $R^2$, but the `lm()` seems to win out in every case. The problem
+is that since exp_total looks very visually Gamma distributed that the Gamma 
+model should perform the best. However, since this is not the case, I will blame
+the problem on our (lack) of variable selection. 
+
+## Deficiencies and Implications
+
+We still have very large residuals that leave us feeling uncertain about the 
+predictive power of the model. Some test data would be nice, though since it 
+wasn't specified to split into test / train sets, I haven't done that. Additionally, 
+the set up mentions that many of the variables were removed as well as people who 
+reported $0 in expenditure. We would have to try to build a better model with the additional 
+covariates if we were implementing this, and maybe the $0 expenditures were actually 
+legitimate. Fitting models with and without these would be interesting.
+
+RMSE penalized more for large errors 
+
+since y data has long tail
+
+gamma makes sense for inference 
+
+```{r}
+
+bind_rows( 
+    
+  broom::augment(m1, type.predict='response') |> 
+    yardstick::rmse(exp_tot, .fitted) |> 
+    select(.metric, .estimate) |> 
+    mutate(model = 'lm'), 
+  
+  broom::augment(glm_gauss, type.predict='response') |> 
+    yardstick::rmse(exp_tot, .fitted) |> 
+    select(.metric, .estimate) |> 
+    mutate(model = 'glm gaussian'), 
+  
+  broom::augment(glm_gamma, type.predict='response') |> 
+    yardstick::rmse(exp_tot, .fitted) |> 
+    select(.metric, .estimate) |> 
+    mutate(model = 'glm gamma')
+
+)
+```
+

@@ -1,0 +1,510 @@
+---
+title: "Homework 5"
+subtitle: Due 11/27/2023 by 5:00 pm
+author: "Will Tirone"
+format: 
+  html:
+    self-contained: true
+---
+
+```{r setup}
+#| include: false
+library(tidyverse)
+library(sf)
+library(dukestm)
+library(geoR)
+```
+
+### Question 1
+
+The data folder contains two files containing data from the Penobscot Experimental Forest in Maine. `data/pef_boundary.gpkg` contains the boundary of the experimental forest and `data/pef_data.csv` contains data on the 589 experimental plots within the forest (451 complete observations). Our ultimate goal will be to model the distribution of biomass throughout the entire forest, for each experimental plot this quantity is measured and recorded in the `biomass_mg_ha` column (`mg_ha` here is the units of measurements which are actually Mg / ha, or metric tonnes per hectare).
+
+```{r message=FALSE}
+boundary = read_sf("data/pef_boundary.gpkg", quiet=TRUE, stringsAsFactors=FALSE)
+pef = readr::read_csv("data/pef_data.csv") %>% na.omit()
+```
+
+a.  Perform basic EDA on the data provided, e.g. how are the outcome variable and predictor variables distributed and how are they related to one another, how are these quantities distributed in space, does there appear to be any spatial dependence, etc.
+
+The biomass is approximately normally distributed with a mean around 110.
+
+```{r}
+pef |> 
+  ggplot() + 
+  geom_density(aes(x=biomass_mg_ha))
+```
+
+Here, I'm checking how the covariates `diameter_class_cm` and `stocking_stems_ha` are related to biomass across a few different plots. Larger values for either of those variables seem correlated with higher biomass values regardless of plot.
+
+```{r}
+
+pef |> 
+  filter(plot %in% c(21, 34, 51, 71)) |> 
+  ggplot() +
+  geom_point(aes(x = stocking_stems_ha, y = diameter_class_cm, 
+                 fill = biomass_mg_ha), pch=21, size=4) +
+  facet_wrap(~plot) + 
+  scale_fill_viridis_c() +
+  labs(
+    title = 'Sampled Plots'
+  )
+
+```
+
+And spatially we see strong evidence of spatial autocorrelation.
+
+```{r}
+ggplot() + 
+  geom_sf(data = boundary) + 
+  geom_point(aes(x=easting, y = northing, color=biomass_mg_ha), data=pef) + 
+  scale_color_viridis_c()
+```
+
+b.  From these data construct an out of sample validation set with at least 20% of experimental plots.
+
+We want to make sure we don't split up a given plot with some measurements in train and some in test, so here I just sample the plots and select all rows where the plots == the sampled plots.
+
+```{r}
+set.seed(546)
+
+plots = unique(pef$plot)
+plot_sample = sample(plots, 0.3 * length(plots))
+
+pef_test = pef |> 
+  filter(plot %in% plot_sample)
+
+pef_train = pef |>
+  filter(!(plot %in% plot_sample))
+```
+
+c.  Based on your explorations in part a. fit an appropriate model to these data predicting `biomass_mg_ha`.
+
+```{r}
+
+max_range = max(dist(pef_train[,c('northing','easting')])) / 4
+
+m = gplm(
+  biomass_mg_ha ~ stocking_stems_ha + diameter_class_cm + 
+    basal_area_m2_ha + gross_growth_mg_ha_y, 
+  data = pef_train, 
+  coords=c("easting", "northing"),
+  cov_model = "exponential",
+  starting = list(phi = 3/300, sigma.sq = 1300, tau.sq = 720),
+  tuning = list("phi"=0.1, "sigma.sq"=0.1, "tau.sq"=0.1),
+  priors = list(
+    phi.Unif = c(3/max_range, 3/1),
+    sigma.sq.IG = c(2, 1),
+    tau.sq.IG = c(2, 1)
+  ),
+  thin=10,
+  n_batch = 100,
+  batch_len = 50,
+  chains=2
+)
+```
+
+d.  Evaluate the predictive performance of your model using your training data.
+
+Based on our model, the training RMSE is \~ 62.4.
+
+```{r}
+pef_train_adj = pef_train |> 
+  mutate(easting = easting + 1e-8,
+         northing = northing + 1e-8)
+
+p_train = predict(m, newdata=pef_train_adj, 
+                  coords=c("easting", "northing"), 
+                  thin=10)
+
+p_post_train = p_train |> 
+  tidybayes::gather_draws(y[i]) |>
+  tidyr::expand_grid(pef_train)
+
+rmse_train = p_post_train |>  
+  group_by() |> 
+  summarize(
+    rmse_train = sqrt(sum((biomass_mg_ha - .value)^2)/ n())
+  ) |> pull()
+
+cat("RMSE : ", rmse_train)
+remove(p_post_train, p_train)
+```
+
+e.  Evaluate the predictive performance of your model using your testing data.
+
+The test data has an RMSE of \~ 63.7.
+
+```{r}
+pef_test_adj = pef_test |> 
+  mutate(easting = easting + 1e-8,
+         northing = northing + 1e-8)
+
+p_test = predict(m, newdata=pef_test_adj, coords=c("easting", "northing"), thin=10)
+
+p_post_test = p_test |> 
+  tidybayes::gather_draws(y[i]) |> 
+  tidyr::expand_grid(pef_test)
+
+rmse_test = p_post_test |>  
+  group_by() |> 
+  summarize(
+    rmse = sqrt(sum((biomass_mg_ha - .value)^2)/ n())
+  ) |> pull()
+
+cat("RMSE : ", rmse_test)
+remove(p_post_test, p_test)
+```
+
+f.  Generate a predictive surface for the entire Penobscot Experimental Forest using some form of raster plot. Each cell should reflect the posterior predive mean for that location.
+
+Leaving my code in though we didn't have to do this question
+
+```{r}
+
+# adjust coords slightly
+pef_adj = pef |> 
+  mutate(easting = easting + 1e-8,
+         northing = northing + 1e-8,
+         i = seq(1:451))
+
+# predict on whole original dataset 
+p = predict(m, newdata=pef_adj, coords=c("easting", "northing"), thin=10)
+
+p_post = p |> 
+  tidybayes::gather_draws(y[i]) |>
+  group_by(i) |> 
+  summarize(mean = mean(.value)) 
+
+intermediate  = left_join(p_post, pef_adj, by='i') |> 
+  group_by(plot) |> 
+  summarize(mean = mean(mean))
+
+pef_adj = left_join(pef_adj, intermediate, by = 'plot') 
+
+pef_adj |> 
+  select(easting, northing, plot, mean) |> 
+  stars::st_as_stars() |>
+  select(mean) |> 
+  plot(breaks='equal')
+```
+
+## <br/>
+
+### Question 2
+
+The `PrevMap` package includes a data set called `data_sim` that are the result of simulating binonial data from latent zero-mean Gaussian Process using a squared exponential covariance with parameters $\sigma^2 = 1$ and $l=1/0.15$. Samples were drawn from the latent Gaussian process at a regular 30 by 30 grid covering the unit square. Binomial values were then drawn using probabilities obtained from the inverse logit transformed GP realizations.
+
+From the package documentation:
+
+-   `y` - binomial observations.
+
+-   `units.m` - binomial denominators.
+
+-   `x1` - horizontal coordinates.
+
+-   `x2` - vertical coordinates.
+
+-   `S` - simulated values of the Gaussian process.
+
+```{r}
+data_sim = PrevMap::data_sim |> as_tibble()
+```
+
+a.  Write out the full model that was used to generate these data.
+
+$$
+\begin{aligned}
+\pi_i &\sim \mathcal{GP}(0, \Sigma)\\ 
+&\Sigma_{ij} = 1 \cdot (-|y(t_i) - y(t_j)|\frac{1}{0.15})^2) \\
+y_i &\sim \text{BIN}(10, \text{expit}(\pi_i))
+\end{aligned}
+$$
+
+b.  Create a visualization of both the observed count data as well as the latent Gaussian Process draws that were used to generate it.
+
+```{r}
+data_sim |> 
+  ggplot(aes(x = x1, y = x2)) + 
+  geom_point(aes(color = S, size = y)) + 
+  scale_color_viridis_c()
+```
+
+c.  Fit a GP based GLM model to the count data `y`.
+
+I'm only running 1,250 iterations per chain here for the sake of homework because this model takes an extremely long time to fit. Ideally, I would like to use more chains or at least 5,000 iterations, but that seems computationally unfeasible (at least for a hw assignment).
+
+```{r}
+gp_model = dukestm::gpglm(
+ y ~ 1, 
+ family = "binomial", 
+ weights = data_sim$units.m,
+ data = data_sim,
+ coords = c("x1","x2"),
+ starting = list("beta"=0,
+                 "phi"=sqrt(3)/0.15, 
+                 "sigma.sq"=1, 
+                 w=data_sim$S),
+ tuning = list("beta"=0.1, 
+               "phi"=0.1, 
+               "sigma.sq"=0.1,"w"=0.1),
+ priors = list(
+  "beta.Norm"=list(0,10),
+  "phi.Unif"=c(sqrt(3)/0.5, sqrt(3)/0.05),
+  "sigma.sq.IG"=c(2, 2),
+  "tau.sq.IG"=c(2, 2)
+ ),
+ cov_model = "gaussian",
+ n_batch = 50,
+ batch_len = 25,
+ chains = 2
+)
+```
+
+d.  Create a visualization comparing the posterior distribution of your model parameters to the true values described above.
+
+Borrowed code to fit the model that Dr. Rundel sent, though the model does not seem to fit well based on the true values. Unsure if this is a modeling issue or just difficult to fit data.
+
+```{r}
+data.frame(gp_model$mcmc) |> 
+  ggplot() + 
+  geom_density(aes(x=sigma.sq)) + 
+  geom_vline(xintercept = 1, col='red', lwd=1) + 
+  labs(title = 'sigma.sq Posterior Distribution')
+```
+
+```{r}
+data.frame(gp_model$mcmc) |> 
+  ggplot() + 
+  geom_density(aes(x=phi)) + 
+  geom_vline(xintercept = (1/0.15), col='red', lwd=1) + 
+  labs(title = 'phi Posterior Distribution')
+```
+
+e.  Evaluate the predictive performance of the model using at least two different metrics.
+
+Here using MAE and RMSE, with the output of those values below. I'm a bit uncertain on what to compare, but if we use the predicted outputs we can then make binomial draws on those probabilities and use those $\hat{y}$ to calculated metrics.
+
+```{r}
+data_sim_mod = data_sim |> 
+  mutate(x1 = x1,
+         x2 = x2,
+         i = seq(1:900))
+
+p = predict(gp_model, newdata=data_sim_mod, coords=c('x1','x2'), thin=10)
+
+means = p |> 
+  tidybayes::gather_draws(y[i]) |> 
+  group_by(i) |>
+  summarize(mean_y = mean(.value)) |> 
+  mutate(y_hat = rbinom(900, 10, mean_y))
+
+comb = left_join(data_sim_mod, means, by = 'i') 
+
+rmse = comb |>  
+  group_by() |> 
+  summarize(
+    rmse = sqrt(sum((y - y_hat)^2)/ n())
+  ) |> pull()
+
+MAE = comb |>  
+  group_by() |> 
+  summarize(
+    MAE = sqrt(sum(abs(y - y_hat))/ n())
+  ) |> pull()
+
+cat("RMSE :", rmse, "\n")
+cat("MAE :", MAE)
+```
+
+## <br/>
+
+### Question 3
+
+a.  Create a version of the `data_sim` data by filtering for points that make up the 10 by 10 grid closest to the origin. (i.e. `x1` and `x2` less than 0.32)
+
+```{r}
+data_sim_filter = data_sim |> 
+  filter(x1 < 0.32 & x2 < 0.32)
+```
+
+b.  Fit a GP based GLM model to these data.
+
+This model seems to fit much faster so I was able to use more iterations, unlike the model for Q2.
+
+```{r}
+gp_model_filter = dukestm::gpglm(
+ y ~ 1, 
+ family = "binomial", 
+ weights = data_sim_filter$units.m,
+ data = data_sim_filter,
+ coords = c("x1","x2"),
+ starting = list("beta"=0,
+                 "phi"=sqrt(3)/0.15, 
+                 "sigma.sq"=1, 
+                 w=data_sim_filter$S),
+ tuning = list("beta"=0.1, 
+               "phi"=0.1, 
+               "sigma.sq"=0.1,"w"=0.1),
+ priors = list(
+  "beta.Norm"=list(0,10),
+  "phi.Unif"=c(sqrt(3)/0.5, sqrt(3)/0.05),
+  "sigma.sq.IG"=c(2, 2),
+  "tau.sq.IG"=c(2, 2)
+ ),
+ cov_model = "gaussian",
+ n_report = 1,
+ n_batch = 100,
+ batch_len = 50,
+ chains = 2
+)
+
+plot(gp_model_filter)
+```
+
+c.  Create a visualization comparing the posterior distribution of your model parameters to the true values described above.
+
+Again it looks like the model converged fairly well, though the posterior values are fairly bad.
+
+```{r}
+data.frame(gp_model_filter$mcmc) |> 
+  ggplot() + 
+  geom_density(aes(x=sigma.sq)) + 
+  geom_vline(xintercept = 1, col='red', lwd=1) + 
+  labs(title = 'sigma.sq Posterior Distribution')
+```
+
+Maybe misunderstanding what I'm supposed to be plotting here, but this does not look like a good estimate.
+
+```{r}
+data.frame(gp_model_filter$mcmc) |> 
+  ggplot() + 
+  geom_density(aes(x=phi)) + 
+  geom_vline(xintercept = (1/0.15), col='red', lwd=1) + 
+  labs(title = 'phi Posterior Distribution')
+```
+
+d.  Evaluate the predictive performance of the model using at least two different metrics.
+
+Again using MAE and RMSE, with the output of those values below. Same thing as Q2 calculating $\hat{y}$ from the predicted probabilities.
+
+```{r}
+data_sim_mod = data_sim_filter |> 
+  mutate(x1 = x1,
+         x2 = x2,
+         i = seq(1:100))
+
+p = predict(gp_model_filter, newdata=data_sim_mod, 
+            coords=c('x1','x2'), thin=10)
+
+means = p |> 
+  tidybayes::gather_draws(y[i]) |> 
+  group_by(i) |>
+  summarize(mean_y = mean(.value)) |> 
+  mutate(y_hat = rbinom(100, 10, mean_y))
+
+comb = left_join(data_sim_mod, means, by = 'i')
+
+rmse = comb |>  
+  group_by() |> 
+  summarize(
+    rmse = sqrt(sum((y - mean_y)^2)/ n())
+  ) |> pull()
+
+MAE = comb |>  
+  group_by() |> 
+  summarize(
+    MAE = sqrt(sum(abs(y - mean_y))/ n())
+  ) |> pull()
+
+cat("Filtered RMSE :", rmse, '\n')
+cat("Filtered MAE :", MAE)
+```
+
+e.  Did this model perform better or worse the the full data model? Justify your answer.
+
+The full model fit better based on RMSE and MAE, despite the smaller model having 4x as many MCMC iterations.
+
+------------------------------------------------------------------------
+
+### Question 4 (Sta 644 required, otherwise EC)
+
+4.6.2 from Banerjee, Carlin, Gelfand (2nd ed.) - Suppose $Y_1$ and $Y_2$ are both binary variables, and their joint distribution is defined through conditional logit models. That is,
+
+$$ 
+\log \frac{P(Y_1=1|Y_2)}{P(Y_1=0|Y_2)} = \alpha_0 + \alpha_1 \, Y_2 \\
+\log \frac{P(Y_2=1|Y_1)}{P(Y_2=0|Y_1)} = \beta_0 + \beta_1 \, Y_1 
+$$
+
+Obtain the joint distribution of $Y_1$ and $Y_2$ using Brook's lemma. Describe any necessary constraints on the values of $\alpha_0$, $\alpha_1$, $\beta_0$, and $\beta_1$.
+
+Used some of the derivation found here: <https://wyaravms.github.io/brook-lemma.html>
+
+First we note:
+
+$$
+\begin{aligned}
+p(Y_{1}, Y_{2}) &= \dfrac{p(Y_{1}|Y_{2})}{p(Y_{1}= 0 |Y_{2})}\cdot \dfrac{p(Y_{2}|Y_{1}=0)}{p(Y_{2}=0|Y_{1}=0)}\cdot p(Y_{1}=0, Y_{2}=0)\\
+\end{aligned}
+$$
+
+Then consider the restatements:
+
+$$
+\begin{aligned}
+\log\frac{P(Y_1=1|Y_2)}{P(Y_1=0|Y_2)} &= \log\frac{p(Y_1 = 1 | Y_2)}{1 - p(Y_1 =1 | Y_2)}\\
+\log\frac{P(Y_2=1|Y_1)}{P(Y_2=0|Y_1)} &= \log\frac{p(Y_2 = 1 | Y_1)}{1 - p(Y_2 =1 | Y_1)}\\
+\\
+\text{now:}\\
+\\
+p(Y_{1} = 1 | Y_{2}) & = \frac{\exp{\{\alpha_{0} + \alpha_{1}Y_{2}\}}}{1 + \exp{\{\alpha_{0} + \alpha_{1}Y_{2}\}}} \\
+p(Y_{2} = 1 | Y_{1}) & =\frac{\exp{\{\beta_{0} + \beta_{1}Y_{1}\}}}{1 + \exp{\{\beta_{0} + \beta_{1}Y_{1}\}}}\\
+\end{aligned}
+$$
+
+Now since these are binary random variables:
+
+$$
+\begin{aligned}
+p(Y_1 = y_1  | Y_2 = y_2) &= \left[\dfrac{\exp{\{\alpha_{0} + \alpha_{1}y_{2}\}}}{1 + \exp{\{\alpha_{0} + \alpha_{1}y_{2}\}}}\right]^{y_{1}}\left[1 - \dfrac{\exp{\{\alpha_{0} + \alpha_{1}y_{2}\}}}{1 + \exp{\{\alpha_{0} + \alpha_{1}y_{2}\}}}\right]^{1 - y_{1}}\\
+&= \dfrac{\left(\exp{\{\alpha_{0} + \alpha_{1}y_{2}\}}\right)^{y_{1}}}{\left(1 + \exp{\{\alpha_{0} + \alpha_{1}y_{2}\}}\right)} \\[15pt]
+\end{aligned}
+$$
+
+and similarly for the second part:
+
+$$
+\begin{aligned}
+p(Y_{2} = y_{2} | Y_{1} = y_{1}) & = \left[\dfrac{\exp{\{\beta_{0} + \beta_{1}y_{1}\}}}{1 + \exp{\{\beta_{0} + \beta_{1}y_{1}\}}}\right]^{y_{2}}\left[1 - \dfrac{\exp{\{\beta_{0} + \beta_{1}y_{1}\}}}{1 + \exp{\{\beta_{0} + \beta_{1}y_{1}\}}}\right]^{1 - y_{2}} \\
+& =  \dfrac{\left(\exp{\{\beta_{0} + \beta_{1}y_{1}\}}\right)^{y_{2}}}{\left(1 + \exp{\{\beta_{0} + \beta_{1}y_{1}\}}\right)} 
+\end{aligned}
+$$
+
+Now we can plug these in to our first statement and simplifying:
+
+$$
+\begin{aligned}
+p(Y_1, Y_2) &= \dfrac{\dfrac{\left(\exp{\{\alpha_{0} + \alpha_{1}y_{2}\}}\right)^{y_{1}}}{\left(1 + \exp{\{\alpha_{0} + \alpha_{1}y_{2}\}}\right)}}{\dfrac{1}{1 + \exp{\{\alpha_{0} + \alpha_{1}y_{2}\}}}} \cdot  \dfrac{\dfrac{\left(\exp{\{\beta_{0}\}}\right)^{y_{2}}}{\left(1 + \exp{\{\beta_{0}\}}\right)}}{\dfrac{1}{\left(1 + \exp{\{\beta_{0}\}}\right)}} \cdot p(Y_{1}=0, Y_{2}=0)  \\[25pt]
+& =\left(\exp{\{\alpha_{0} + \alpha_{1}y_{2}\}}\right)^{y_{1}} \cdot  \left(\exp{\{\beta_{0}\}}\right)^{y_{2}} \cdot p(Y_{1}=0, Y_{2}=0)
+\end{aligned}
+$$
+
+Next we need to find $p(Y_1 = 0, Y_2 = 0)$. Below we'll take the sum, and where any of the exponents = 0 we just get a 1. So simplifying the statement slightly:
+
+$$
+\begin{aligned}
+\sum_{y_1}\sum_{y_2} &= \exp \{{\alpha_0} + \alpha_1 y_2\}^{y_1} \exp\{\beta_0\}^{y_2}p(Y_1 = 0, Y_2 = 0) = 1\\
+\\
+&\Rightarrow [1 + \exp\{{\alpha_0} + \alpha_1 \cdot 0\}^{1} +\exp\{\beta_0\} \\
+&+ \exp\{\alpha_0 + \alpha_1\cdot1\}^1 \exp\{\beta_0\}^1]\cdot p(Y_1 = 0, Y_2=0) = 1 \\ 
+\\
+&\Rightarrow p(Y_1 = 0, Y_2 = 0) =  [1 + \exp\{{\alpha_0} \} +\exp\{\beta_0\} + \exp\{\alpha_0 + \alpha_1\} \cdot\exp\{\beta_0\}]^{-1}
+\end{aligned}
+$$
+
+And finally plugging everything in we get the result:
+
+$$
+\begin{aligned}
+p(Y_{1} = y_{1}, Y_{2} = y_{2}) &= \frac{\exp{\{\alpha_{0} + \alpha_{1}y_{2}\}}^{y_{1}} \cdot  \exp{\{\beta_{0}\}}^{y_{2}}}{1 + \exp{\{\alpha_{0}\}} + \exp{\{\beta_{0}\}} + \exp{\{\alpha_{0} + \alpha_{1}\}}\exp{\{\beta_{0}\}}} 
+\end{aligned}
+$$

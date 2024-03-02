@@ -1,0 +1,769 @@
+---
+title: "Homework 1"
+subtitle: "Due Friday, Sept 22nd by 5 pm"
+author: "Will Tirone"
+format: html 
+editor: 
+  markdown: 
+    wrap: 72
+---
+
+```{r setup}
+#| include: false
+library(tidyverse)
+library(brms)
+library(dukestm)
+library(tidybayes)
+library(ggdist)
+library(GGally)
+library(broom.mixed)
+library(cowplot)
+library(kableExtra)
+```
+
+### Question 1
+
+<i>Assume that you have observed data $y_1,\, \ldots, \, y_n$. Show that
+the multivariate normal likelihood for these data, when
+$\boldsymbol{\mu} = \underset{n \times 1}{\boldsymbol{0}}$ and
+$\boldsymbol{\Sigma} = \sigma^2 \underset{n \times n}{\boldsymbol{I}_n}$
+is the same as the likelihood a treating these data as arising from $n$
+iid normals with mean 0 and variance $\sigma^2$. In other words show
+that the matrix form is equivalent to the summation form (or vice
+versa).</i>
+
+```{r, echo=FALSE, fig.cap="problem 1", out.width = '100%'}
+knitr::include_graphics("images/prob1.PNG")
+```
+
+------------------------------------------------------------------------
+
+### Question 2
+
+#### Data
+
+<i>For this question we will using the same data set from the beginning
+of Lecture 03. This is available from `lec03_data.rds` which can be read
+in by the code chunk below. Since this is the same data from lecture you
+should be able to crib directly from code shown in lecture to get
+started with the following parts of this question.</i>
+
+```{r}
+d = readRDS("data/lec03_data.rds")
+```
+
+<i> This question is meant to give you some experience and intuition
+around the effect prior distributions can have on a model's parameters.
+Here we will try applying different priors to the slope and intercept of
+this linear regression model and observe the outcomes.
+
+For both parameters we will consider the use of normal priors that will
+be "weakly informative" or "strongly informative" and "unbiased" or
+"biased" (and the default flat priors from brms). Note we are slightly
+abusing common terminology here to simplify things somewhat, what is
+meant by each is the following:
+
+-   "weakly informative" - is a prior with largish standard deviation
+    (relative to the parameter of interest)
+
+-   "strongly informative" - is a prior with a smallish standard
+    deviation (relative to the parameter of interest)
+
+-   "unbiased" - is a prior with a mean equal to 0
+
+-   "biased" - is a prior with a mean not equal to 0.
+
+For all of the above keep in mind the expected scale of the parameters
+based on the results of `lm()`, is around `-1` for the intercept and
+`0.07` for the slope (using the results of `lm()` to inform the priors
+is double dipping, but the goal here is to see how the priors affect our
+parameter estimates). </i>
+
+------------------------------------------------------------------------
+
+#### Part 1
+
+<i>Fit 5 separate models to these data with brms using the default
+priors as well as the 4 combinations of informativeness and biasedness.
+It is up to you to pick somewhat reasonable values for each of these
+conditions, keep in mind that specifically in the biased strongly
+informative case the expected outcome is a model that is "wrong". Be
+sure to use an informative naming scheme so it is clear which model is
+which.
+
+While you should not include these plots, its a good idea to check the
+traceplots of each model to confirm that it has converged. </i>
+
+Model 1:
+
+$$
+y_i = \beta_1 x_i + \epsilon
+$$
+
+```{r, include=FALSE}
+# default flat priors
+model.default = brms::brm(y ~ x, 
+                          data=d, 
+                          silent = 2, 
+                          refresh = 0,
+                          backend = "cmdstanr")
+```
+
+```{r}
+
+```
+
+
+
+Model 2:
+
+```{r, include=FALSE}
+# intercept : unbiased and weak 
+# slope : unbiased and weak 
+model.unbias.weak = brms::brm(
+      y ~ x, data=d,
+      prior = c(brms::prior(normal(0, 100), class = Intercept),
+                brms::prior(normal(0, 100),  class = b)),
+      silent = 2, refresh = 0,
+      backend = "cmdstanr")
+```
+
+Model 3:
+
+```{r, include=FALSE}
+# intercept : unbiased and strong 
+# slope : unbiased and strong 
+model.unbiased.strong = brms::brm(
+        y ~ x, data=d,
+        prior = c(brms::prior(normal(0, 1), class = Intercept),
+                  brms::prior(normal(0, .1),  class = b)),
+        silent = 2, refresh = 0,
+        backend = "cmdstanr")
+```
+
+Model 4:
+
+```{r, include=FALSE}
+# intercept : biased and strong 
+# slope : biased and strong
+model.bias.strong = brms::brm(
+      y ~ x, data=d,
+      prior = c(brms::prior(normal(100, 1), class = Intercept),
+                brms::prior(normal(50, 0.5),  class = b)),
+      silent = 2, refresh = 0,
+      backend = "cmdstanr")
+```
+
+Model 5:
+
+```{r, include=FALSE}
+# intercept : biased and weak 
+# slope : biased and weak 
+model.biased.weak = brms::brm(
+      y ~ x, data=d,
+      prior = c(brms::prior(normal(45, 100), class = Intercept),
+                brms::prior(normal(30, 100),  class = b)),
+      silent = 2, refresh = 0,
+      backend = "cmdstanr")
+```
+
+------------------------------------------------------------------------
+
+#### Part 2
+
+<i> Create a table that includes the posterior mean and 95% credible
+interval for the slope and intercept of all 5 models. Comment on what
+you see in these results. </i>
+
+<!--- Include your table code below --->
+
+```{r}
+bind_rows(
+  model.default |> 
+  tidybayes::gather_draws(b_Intercept, b_x, sigma) |> 
+    group_by(.variable) |> 
+    summarize(model = "default model",
+              mean = mean(.value),
+              lower = quantile(.value, 0.05),
+              upper = quantile(.value, 0.95)),
+  model.unbias.weak |> 
+  tidybayes::gather_draws(b_Intercept, b_x, sigma) |> 
+    group_by(.variable) |> 
+    summarize(model = "weak-unbias model",
+              mean = mean(.value),
+              lower = quantile(.value, 0.05),
+              upper = quantile(.value, 0.95)),
+  model.unbiased.strong |> 
+  tidybayes::gather_draws(b_Intercept, b_x, sigma) |> 
+    group_by(.variable) |> 
+    summarize(model = "strong-unbias model",
+              mean = mean(.value),
+              lower = quantile(.value, 0.05),
+              upper = quantile(.value, 0.95)),
+  model.biased.weak |> 
+  tidybayes::gather_draws(b_Intercept, b_x, sigma) |> 
+    group_by(.variable) |> 
+    summarize(model = "weak-bias model",
+              mean = mean(.value),
+              lower = quantile(.value, 0.05),
+              upper = quantile(.value, 0.95)),
+  model.bias.strong |> 
+  tidybayes::gather_draws(b_Intercept, b_x, sigma) |> 
+    group_by(.variable) |> 
+    summarize(model = "strong-bias model",
+              mean = mean(.value),
+              lower = quantile(.value, 0.05),
+              upper = quantile(.value, 0.95)),
+) |> kable() 
+
+
+```
+
+<!--- Include your discussion below --->
+
+Excuse my slightly verbose code, still trying to figure out the most
+compact way to store these models to access them later.
+
+I have the models named with their attributes, so \`model.bias.strong\`
+refers to the strongly informative and biased model. First, the default
+priors work well and get us close to the correct answer. The weakly
+informative and biased model also gets us close to the truth. The
+strongly informative and unbiased did fairly well, though the intercept
+was a bit further from the true value, and the strongly informative and
+unbiased gave us results that were way off, as expected.
+
+For the strong bias, I also used very, very strong and very biased
+priors to see how much it would deviate from the truth.
+
+------------------------------------------------------------------------
+
+#### Part 3
+
+<i> Create a set of 5 plots (or one plot with 5 subplots) showing the
+posterior predictive intervals for $y$ for each of the models. Comment
+on what you see in these results. </i>
+
+<!--- Include your plot code below --->
+
+```{r}
+default.post.pred = tidybayes::predicted_draws(model.default, newdata = d)
+bias.strong.post.pred = tidybayes::predicted_draws(model.bias.strong, newdata = d)
+bias.weak.post.pred = tidybayes::predicted_draws(model.biased.weak, newdata = d)
+unbias.weak.post.pred = tidybayes::predicted_draws(model.unbias.weak, newdata = d)
+unbias.strong.post.pred = tidybayes::predicted_draws(model.unbiased.strong, newdata = d)
+
+default.post.pred |> 
+    ggplot(aes(x=x, y=y)) + 
+    geom_point() +
+    ggtitle('Default Model') + 
+    ggdist::stat_lineribbon(
+      aes(y=.prediction), alpha=0.25
+    )
+
+bias.strong.post.pred |> 
+    ggplot(aes(x=x, y=y)) + 
+    geom_point() +
+    ggtitle('Strongly Informative Biased Prior Model') + 
+    ggdist::stat_lineribbon(
+      aes(y=.prediction), alpha=0.25
+    )
+
+bias.weak.post.pred |> 
+    ggplot(aes(x=x, y=y)) + 
+    geom_point() +
+    ggtitle('Weakly Informative Biased Prior Model') + 
+    ggdist::stat_lineribbon(
+      aes(y=.prediction), alpha=0.25
+    )
+
+unbias.weak.post.pred |> 
+    ggplot(aes(x=x, y=y)) + 
+    geom_point() +
+    ggtitle('Weakly Informative Unbiased Prior Model') + 
+    ggdist::stat_lineribbon(
+      aes(y=.prediction), alpha=0.25
+    )
+
+unbias.strong.post.pred |> 
+    ggplot(aes(x=x, y=y)) + 
+    geom_point() +
+    ggtitle('Weakly Informative Unbiased Prior Model') + 
+    ggdist::stat_lineribbon(
+      aes(y=.prediction), alpha=0.25
+    )
+```
+
+<!--- Include your discussion below --->
+
+All the models look pretty good, except the strongly informative biased
+model which makes sense. I made it very, very biased and very strong so
+we can't use this model. In summary, we could reasonably trust
+predictions from any of the models (conditional on other model checking
+that we haven't done) but we should throw out the model with poorly set
+priors.
+
+------------------------------------------------------------------------
+
+#### Part 4
+
+<i> Create a table containing the rmse, crps, and empirical coverage for
+$y$ for all 5 of the models (using 1 chain each is fine here). </i>
+
+<!--- Include your table code below --->
+
+```{r}
+bind_rows(
+  
+  # rmse 
+  broom::augment(model.default) |> 
+    yardstick::rmse(y, .fitted) |> 
+    select(.metric, .estimate) |> 
+    mutate(model = 'default'),
+  
+  broom::augment(model.bias.strong) |> 
+    yardstick::rmse(y, .fitted) |> 
+    select(.metric, .estimate) |> 
+    mutate(model = 'biased / strong'),
+  
+  broom::augment(model.biased.weak) |> 
+    yardstick::rmse(y, .fitted) |> 
+    select(.metric, .estimate) |> 
+    mutate(model = 'biased / weak'),
+  
+  broom::augment(model.unbiased.strong) |> 
+    yardstick::rmse(y, .fitted) |> 
+    select(.metric, .estimate) |> 
+    mutate(model = 'unbiased / strong'),
+  
+  broom::augment(model.unbiased.strong) |> 
+    yardstick::rmse(y, .fitted) |> 
+    select(.metric, .estimate) |> 
+    mutate(model = 'unbiased / weak'),
+  
+  # crps 
+  predicted_draws_fix(model.default, newdata=d) |> group_by(x) |> 
+  summarise(crps = dukestm::calc_crps(.prediction, obs=y), .groups="drop_last") |>
+  summarize(.estimate = mean(crps)) |> 
+  mutate(.metric = 'crps', model = 'default'), 
+  
+  predicted_draws_fix(model.bias.strong, newdata=d) |> group_by(x) |> 
+  summarise(crps = dukestm::calc_crps(.prediction, obs=y), .groups="drop_last") |>
+  summarize(.estimate = mean(crps)) |> 
+  mutate(.metric = 'crps', model = 'biased / strong'), 
+  
+  predicted_draws_fix(model.biased.weak, newdata=d) |> group_by(x) |> 
+  summarise(crps = dukestm::calc_crps(.prediction, obs=y), .groups="drop_last") |>
+  summarize(.estimate = mean(crps)) |> 
+  mutate(.metric = 'crps', model = 'biased / weak'),
+  
+  predicted_draws_fix(model.unbiased.strong, newdata=d) |> group_by(x) |> 
+  summarise(crps = dukestm::calc_crps(.prediction, obs=y), .groups="drop_last") |>
+  summarize(.estimate = mean(crps)) |> 
+  mutate(.metric = 'crps', model = 'unbiased / strong'), 
+  
+  predicted_draws_fix(model.unbias.weak, newdata=d) |> group_by(x) |> 
+  summarise(crps = dukestm::calc_crps(.prediction, obs=y), .groups="drop_last") |>
+  summarize(.estimate = mean(crps)) |> 
+  mutate(.metric = 'crps', model = 'unbiased / weak'),
+  
+  # coverage 
+  predicted_draws_fix(model.default, newdata=d) |>
+  group_by(x, y) |> 
+  tidybayes::mean_hdi(.prediction, .width = c(0.95)) |>
+  mutate(contains = y >= .lower & y <= .upper) |>
+  group_by(prob = .width) |>
+  summarize(.estimate = sum(contains)/n(),
+            .metric = '95% HDI', 
+            model = 'default') |>
+  select(.estimate, .metric, model), 
+  
+  predicted_draws_fix(model.bias.strong, newdata=d) |>
+  group_by(x, y) |> 
+  tidybayes::mean_hdi(.prediction, .width = c(0.95)) |>
+  mutate(contains = y >= .lower & y <= .upper) |>
+  group_by(prob = .width) |>
+  summarize(.estimate = sum(contains)/n(),
+            .metric = '95% HDI', 
+            model = 'biased / strong') |>
+  select(.estimate, .metric, model), 
+  
+  predicted_draws_fix(model.unbiased.strong, newdata=d) |>
+  group_by(x, y) |> 
+  tidybayes::mean_hdi(.prediction, .width = c(0.95)) |>
+  mutate(contains = y >= .lower & y <= .upper) |>
+  group_by(prob = .width) |>
+  summarize(.estimate = sum(contains)/n(),
+            .metric = '95% HDI', 
+            model = 'unbiased / strong') |>
+  select(.estimate, .metric, model),
+  
+  predicted_draws_fix(model.biased.weak, newdata=d) |>
+  group_by(x, y) |> 
+  tidybayes::mean_hdi(.prediction, .width = c(0.95)) |>
+  mutate(contains = y >= .lower & y <= .upper) |>
+  group_by(prob = .width) |>
+  summarize(.estimate = sum(contains)/n(),
+            .metric = '95% HDI', 
+            model = 'biased / weak') |>
+  select(.estimate, .metric, model), 
+  
+  predicted_draws_fix(model.unbias.weak, newdata=d) |>
+  group_by(x, y) |> 
+  tidybayes::mean_hdi(.prediction, .width = c(0.95)) |>
+  mutate(contains = y >= .lower & y <= .upper) |>
+  group_by(prob = .width) |>
+  summarize(.estimate = sum(contains)/n(),
+            .metric = '95% HDI', 
+            model = 'unbiased / weak') |>
+  select(.estimate, .metric, model)
+  
+) |> kable()
+```
+
+------------------------------------------------------------------------
+
+#### Part 5
+
+<i> Based on your results in the preceeding parts, summarize any
+conclusions you can draw on the effect of using biased vs unbiased and
+strong vs weakly informative priors for a model. </i>
+
+<!--- Include your discussion below --->
+
+I'm actually surprised that everything other than very, very strongly
+and biased priors resulted in very similar models. I think the overall
+message here is just "don't set extremely strong priors unless you have
+expert knowledge". The results also offer a fairly compelling reason to
+not deviate from non-informative (default) priors if you have no expert
+knowledge. We did tons of analysis just to prove that the default model
+was fine! Though that will not always be the case.
+
+------------------------------------------------------------------------
+
+### Question 3
+
+<i>Logistic regression is another example of a generalized linear model
+where the response variable follows a Bernoulli distribution and a logit
+link function is used. Based on the definition of deviance given in
+class derive the formula for the deviance of a logistic regression model
+as well as the formula for a single deviance residual.</i>
+
+```{r, echo=FALSE, fig.cap="problem 3", out.width = '100%'}
+knitr::include_graphics("images/num3.png")
+```
+
+------------------------------------------------------------------------
+
+### Question 4
+
+#### Data
+
+<i>This repository contains several files in the `data/dvisits` folder,
+these files contains / describe data from the Australian Health Survey
+of 1977-78 for 5190 single adults. The rds files contain the
+`dvisits_train` and `dvisits_test` data frames, representing the testing
+and training splits of the original data. There is also `dvisits.html`
+which includes a complete codebook describing the variables present in
+the data.</i>
+
+```{r}
+dvisits_train = readRDS("data/dvisits/dvisits_train.rds")
+dvisits_test = readRDS("data/dvisits/dvisits_test.rds")
+
+# want to convert these columns to factors first 
+dvisits_train = dvisits_train |> 
+  mutate(across(c('sex', 'levyplus', 'freepoor', 'freerepa', 
+                  'chcond1', 'chcond2'), as.factor))
+
+dvisits_test = dvisits_test |> 
+  mutate(across(c('sex', 'levyplus', 'freepoor', 'freerepa', 
+                  'chcond1', 'chcond2'), as.factor))
+```
+
+------------------------------------------------------------------------
+
+#### Part 1
+
+<i>Using the training data start with some exploratory data analysis -
+our outcome variable of interest is `doctorco`. You should examine the
+distribution of `doctorco` and any apparent relationship it has with the
+remaining variables.
+
+Based on what you find, describe what type of model do you think would
+be appropriate here and if you were only able to select at most *5*
+predictor variables to include in your model what would they be and
+why?</i>
+
+<!--- Include your code for EDA Below ----->
+
+```{r}
+dens = dvisits_train |> ggplot(aes(x=doctorco)) + geom_density()
+
+# high correlation 
+p1 = dvisits_train |> 
+  ggplot(aes(x=illness, y=doctorco, group=illness)) + 
+  geom_boxplot()
+
+# from looking at boxplot
+p2 = dvisits_train |> 
+  ggplot(aes(x=freerepa, y=doctorco, group=freerepa)) + 
+  geom_boxplot() 
+
+# high correlation 
+p3 = dvisits_train |> 
+  ggplot(aes(x=actdays, y=doctorco, group=actdays)) + 
+  geom_boxplot() 
+
+# from boxplot 
+p4 = dvisits_train |> 
+  ggplot(aes(x=chcond2, y=doctorco, group=chcond2)) + 
+  geom_boxplot() 
+
+# high correlation  
+p5 = dvisits_train |> 
+  ggplot(aes(x=prescrib, y=doctorco, group=prescrib)) + 
+  geom_boxplot() 
+
+plot_grid(dens, p1, p2, p3, p4, p5, nrow=2)
+```
+
+<!--- Include your discussion of the model and your choice of predictors below --->
+
+I chose the predictors by running through several iterations of
+`GGally::ggpairs()` and then manually placing the plots I wanted into a
+grid of plots. My goal was to find covariates that did not look uniform
+acros `doctorco`. We want to find something that predicts how many
+doctor visits they will have, so we want variables that are 'unique' for
+different levels of `doctorco`. I chose these based on either
+correlation with `doctorco` or just by visually inspecting their
+boxplots.
+
+Since Poisson regression is the standard for modeling count data, which
+we have, we will use that.
+
+------------------------------------------------------------------------
+
+#### Part 2
+
+poisson: https://sta344-644-fa23.github.io/slides/Lec04.pdf
+
+<i>Fit your model and predictors of choice to the data using `glm` or
+`brm` (default priors are fine here) and create an *appropriate*
+residuals plot ($\hat{Y}$ vs residuals) and comment on any structure or
+lack of structure you see.</i>
+
+<!--- Include your code for model fitting below ----->
+
+```{r}
+dvisits.model = glm(doctorco ~ illness + freerepa + actdays + 
+                      chcond2 + prescrib, 
+                      data=dvisits_train, family=poisson)
+
+dev_predictions = broom::augment(dvisits.model,
+                                 type.predict = 'response',
+                                 type.residuals = 'deviance')
+
+dev_predictions |> 
+  ggplot(aes(x=.resid, y=.fitted)) + 
+  geom_point()
+```
+
+<!--- Include your discussion of the residuals below --->
+
+I used deviance to make the above plot, though from a quick glance,
+Pearson and standard residuals had very similar structure. I also think
+we see a pretty obvious structure in the residuals as well. So, if I'm
+reading this correctly, we are making worse predictions when the true
+number of \`doctorco\` is lower, but there's also some sort of structure
+in the residuals that we're not quite accounting for yet.
+
+------------------------------------------------------------------------
+
+#### Part 3
+
+<i>Pick two submodels from your original model: one with only 3
+predictors and the other with only 1 predictor. Now for all three
+models, using only the training data, calculate the following goodness
+of fit statistics:
+
+-   Sum of squared residuals
+-   Deviance (sum of squared deviance residuals)
+-   Pearson's statistic (sum of squared Pearson residuals)
+
+Present your results in a table and comment on any obvious patterns.</i>
+
+<!--- Include your code below ----->
+
+```{r}
+three_pred = glm(doctorco ~ illness + chcond2 + prescrib,
+                 data=dvisits_train, family=poisson)
+
+one_pred = glm(doctorco ~ actdays, 
+                    data=dvisits_train, family=poisson)
+```
+
+```{r}
+
+  bind_rows(
+    
+    # deviance 
+    broom::augment(dvisits.model, 
+                   type.predict = 'response', type.residuals = 'deviance') |> 
+      summarise(value = sum(.resid^2)) |> 
+      mutate(model = 'base model', metric = 'sum sq. dev.'),
+    
+    broom::augment(three_pred, 
+                   type.predict = 'response', type.residuals = 'deviance') |> 
+      summarise(value = sum(.resid^2)) |> 
+      mutate(model = 'three predictors', metric = 'sum sq. dev.'),
+    
+    broom::augment(one_pred, 
+                   type.predict = 'response', type.residuals = 'deviance') |> 
+      summarise(value = sum(.resid^2)) |> 
+      mutate(model = 'one predictor', metric = 'sum sq. dev.'),
+    
+    # standard resid 
+    broom::augment(dvisits.model, type.predict = 'response') |> 
+      mutate(.resid = doctorco - .fitted) |> 
+      summarise(value = sum(.resid^2)) |> 
+      mutate(model = 'base model', metric = 'sum sq. resid.'),
+    
+    broom::augment(three_pred, type.predict = 'response') |> 
+      mutate(.resid = doctorco - .fitted)  |> 
+      summarise(value = sum(.resid^2)) |> 
+      mutate(model = 'three predictors', metric = 'sum sq. resid.'),
+    
+    broom::augment(one_pred, type.predict = 'response') |> 
+      mutate(.resid = doctorco - .fitted)  |> 
+      summarise(value = sum(.resid^2)) |> 
+      mutate(model = 'one predictor', metric = 'sum sq. resid.'),
+    
+    # pearson 
+    broom::augment(dvisits.model, 
+                   type.predict = 'response', type.residuals = 'pearson') |> 
+      summarise(value = sum(.resid^2)) |> 
+      mutate(model = 'base model', metric = 'Pearson stat.'),
+    
+    broom::augment(three_pred, type.predict = 'response',
+                   type.residuals = 'pearson') |>
+      summarise(value = sum(.resid^2)) |> 
+      mutate(model = 'three predictors', metric = 'Pearson stat.'),
+    
+    broom::augment(one_pred,
+                   type.predict = 'response', type.residuals = 'pearson') |> 
+      summarise(value = sum(.resid^2)) |> 
+      mutate(model = 'one predictor', metric = 'Pearson stat.')
+    
+  ) |> kable()
+```
+
+<!--- Include your discussion below --->
+
+It looks like our base model performed the best with respect to all
+three statistics. Interestingly, the three predictor model did worse in
+every case. I think we could justifiably ditch the three predictor model
+in favor of a model with just `illness` as the only covariate, and it
+might be worth checking how every single covariate performed on its own.
+
+------------------------------------------------------------------------
+
+#### Part 4
+
+<i>Using the `train` and `test` data separately, calculate an RMSE for
+all three models from Part 3. Do your results agree with the goodness
+fit results from part 3?</i>
+
+<!--- Include your code below ----->
+
+```{r}
+
+bind_rows(
+  
+    # training data rmse
+    broom::augment(dvisits.model, type.predict = 'response') |> 
+    summarize(value = yardstick::rmse_vec(doctorco, .fitted)) |> 
+    mutate(model = 'full model',
+           metric = 'rmse',
+           data = 'training data'),
+
+    broom::augment(three_pred, type.predict = 'response') |> 
+    summarize(value = yardstick::rmse_vec(doctorco, .fitted)) |> 
+    mutate(model = 'three predictors model',
+           metric = 'rmse',
+           data = 'training data'),
+  
+    broom::augment(one_pred, type.predict = 'response') |> 
+    summarize(value = yardstick::rmse_vec(doctorco, .fitted)) |> 
+    mutate(model = 'one predictor model',
+           metric = 'rmse',
+           data = 'training data'),
+
+    # test data rmse
+    broom::augment(dvisits.model, newdata = dvisits_test, 
+                   type.predict = 'response') |> 
+    summarize(value = yardstick::rmse_vec(doctorco, .fitted)) |> 
+    mutate(model = 'full model',
+           metric = 'rmse',
+           data = 'test data'),
+    
+    broom::augment(three_pred, newdata = dvisits_test, 
+                   type.predict = 'response') |> 
+    summarize(value = yardstick::rmse_vec(doctorco, .fitted)) |> 
+    mutate(model = 'three predictors model',
+           metric = 'rmse',
+           data = 'test data'),
+  
+    broom::augment(one_pred, newdata = dvisits_test, 
+                   type.predict = 'response') |> 
+    summarize(value = yardstick::rmse_vec(doctorco, .fitted)) |> 
+    mutate(model = 'one predictor model',
+           metric = 'rmse',
+           data = 'test data')
+    
+) |> kable()
+
+```
+
+<!--- Include your discussion below --->
+
+This is a very different result! The full model does well on training data but 
+worse than all the other models on the test set. The one predictor model does 
+better on the test set, so either `actdays` was a very good covariate to pick,
+or our efforts to build a better model with more covariates was misguided.
+
+------------------------------------------------------------------------
+
+### Question 5 (Sta 644 required, otherwise EC)
+
+<i> Ridge regression is variant of linear regression where an additional
+penalty term is applied which prefers smaller regression coefficients
+over larger ones. There are a number of possible formulations but we
+will consider it in the form of a penalized likelihood:
+$q(\boldsymbol\beta|\boldsymbol X,\boldsymbol y) = -\ell(\boldsymbol\beta|\boldsymbol X,\boldsymbol y) + p(\boldsymbol\beta)$
+where $\ell$ is the log likelihood and $p$ is the penalty function.
+
+For ridge regression specifically, we assume the following forms, $$
+\begin{aligned}
+\ell(\boldsymbol\beta|\boldsymbol X, \boldsymbol y) &= -\frac{n}{2} \log 2\pi - \frac{n}{2} \log \sigma^2 - \frac{1}{2\sigma^2} (\boldsymbol{y}-\boldsymbol{X \beta})'  (\boldsymbol{y}-\boldsymbol{X \beta}) \\
+p(\boldsymbol \beta) &= \lambda \; \boldsymbol\beta' \boldsymbol\beta
+\end{aligned}
+$$
+
+Find the expression of $\boldsymbol\beta$ that minimizes
+$q(\boldsymbol\beta|\boldsymbol X,\boldsymbol y)$. You should treat
+$\sigma^2$ and $\lambda$ as known values.
+
+</i>
+
+$$
+\begin{aligned}
+\frac{\partial q}{\partial \beta} &= \frac{1}{2\sigma^2}\frac{\partial}{\partial \beta} [y^Ty - 2\beta^T \boldsymbol X^Ty + B^T\boldsymbol X^T \boldsymbol X\beta]  + \frac{\partial}{\partial \beta} (\lambda\beta^T\beta) \\
+&= \frac{1}{2\sigma^2}[-2\boldsymbol X^Ty  +2 \boldsymbol X^T \boldsymbol X\beta] + 2\lambda \beta \\
+\\
+&\text{setting equal to 0:} \\
+\\
+\boldsymbol X^Ty &= \boldsymbol X^T\boldsymbol X\beta + 2\sigma^2 \lambda\beta \\ 
+&= (\boldsymbol X^T\boldsymbol X  + 2\sigma^2 \lambda I)\beta\\
+\hat{\beta}_{ridge} &= (\boldsymbol X^T\boldsymbol X  + 2\sigma^2 \lambda I)^{-1}\boldsymbol X^Ty
+\end{aligned} 
+$$

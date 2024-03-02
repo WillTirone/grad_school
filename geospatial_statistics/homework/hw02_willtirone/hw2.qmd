@@ -1,0 +1,313 @@
+---
+title: "Homework 2"
+author: Will Tirone
+format: 
+  html:
+    self-contained: true
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(tsibble)
+library(feasts)
+library(fable)
+```
+
+### Question 1 (Sta 644 required, otherwise EC)
+
+One way we can deal with overdispersion in a Poisson regression model is by using a Negative Binomial distribution instead. There is a clever parameterization that helps with the interpretability of this model. If we define
+
+$$
+\begin{aligned}
+Y~|~Z &\sim \text{Pois}(\lambda \, Z) \\
+Z &\sim \text{Gamma}(\theta, \, \theta)
+\end{aligned}
+$$
+
+*show* that the marginal distribution of $Y = \int_0^\infty [Y~|~Z]~[Z] ~ dz$ will be negative binomial with,
+
+$$
+\begin{aligned}
+E(Y)   &= \lambda \\
+Var(Y) &= \lambda + \lambda^2/\theta
+\end{aligned}
+$$
+
+<!-- Include your derivation using latex or attach legible image of your work -->
+
+\$\$
+
+\$\$
+
+------------------------------------------------------------------------
+
+### Question 2
+
+<i>Assume we have a process defined by $y_t = 3 + 2\,t + 0.5 \, y_{t-1} + w_t$ where $w_t \overset{iid}{\sim} \mathcal{N}(0, \sigma^2_w)$ </i>
+
+<!-- For all of the following include your derivation using latex or attach legible image of your work -->
+
+a.  <i> Is $y_t$ stationary ? Show why or why not.</i>
+
+\$\$
+
+\$\$
+
+b.  <i> Is $y_t$ stationary after 1st order differencing (i.e. is $y_t - y_{t-1}$ stationary)? Show why or why not.</i>
+
+\$\$
+
+\$\$
+
+------------------------------------------------------------------------
+
+### Question 3
+
+<i>Let $y_t = 1 + 0.5 \, y_{t-1} + 0.5 \, w_{t-1} + w_t$, where $w_t \overset{iid}{\sim} \mathcal{N}(0,\sigma^2_w)$.</i>
+
+a.  <i>Find $E(y_t)$</i>
+
+\$\$
+
+\$\$
+
+b.  <i>Find $\text{Var}(y_t)$</i>
+
+\$\$
+
+\$\$
+
+c.  <i>Find autocovariance function of $y_t$, $\gamma_y(h)$</i>
+
+\$\$
+
+\$\$
+
+d.  <i>Find the autocorrelation function of $y_t$, $\rho_y(h)$</i>
+
+\$\$
+
+\$\$
+
+e.  <i>Plot or sketch the ACF of $y_t$ for lags 1 through 5</i>
+
+```{r}
+```
+
+f.  <i>Rewrite ${\bf y} = \{y_t\}$ as a multivariate normal distribution, clearly define both ${\bf \mu}$ and ${\bf \Sigma}$</i>
+
+\$\$
+
+\$\$
+
+------------------------------------------------------------------------
+
+### Question 4
+
+a.  <i>Write a function to simulate an AR(1) process for an arbitrary $\phi$, assume that $y_0 = 0$</i>
+
+```{r}
+
+AR1 = function(delta, phi, S) {
+  
+  time_data = c() 
+  time = 1:S
+  
+  for (t in time) {
+    
+    w_t = rnorm(1, 0, 1)
+    
+    if (t == 1) {
+      y_1 = delta + phi * 0 + w_t
+      time_data = c(time_data, y_1)
+    } else {
+      y_t = delta + phi * time_data[t-1] + w_t
+      time_data = c(time_data, y_t)
+    }
+  }
+  
+  time_df = data.frame(time, time_data) |> 
+    as_tsibble(index = time)
+  
+  return(time_df)
+  
+}
+
+```
+
+b.  <i>Pick a value of $\phi$ such that $0 < \phi < 1$, generate at least 1000 samples from this process and compare the empirical mean and variance to the appropriate theoretical values.</i>
+
+Below, we see a simulated mean of 3.951. Using the formula for the expectation derived in class, $E(y_t) = \frac{\delta}{1-\phi} = 4$ with $\delta = 2, \phi=0.5$ so it looks like we're on the right track.
+
+```{r}
+set.seed(829)
+sim = AR1(delta = 2, phi = 0.5, S=2000)
+sim_mean = mean(sim$time_data)
+print(sim_mean)
+```
+
+c\. <i>Compute the empirical ACF for your simulation, compare this to the values of theoretical autocorrelation function.</i>
+
+Here, I used the theoretical autocorrelation for an AR(1) process which is simply $\rho(h) = \phi^h$ and compared to the ACF from our simulation. They look very similar again. Below, the theoretical values are the red dots on the plot.
+
+```{r}
+time = c(0:33)
+phi = rep(0.5, 34)
+theoretical_acf = phi^time
+ 
+acf_result = acf(sim$time_data, plot=FALSE)
+plot(acf_result)
+points(x = acf_result$lag, y = theoretical_acf, type = 'p', col = 'red')
+```
+
+d.  <i>Repeat your simulation in part b. at least 100 times, create a **visualization** to compare your empirical means and variances to the appropriate theoretical values.</i>
+
+Using $\delta = 2$ and $\phi = 0.5$, the theoretical mean is again 4 and the theoretical variance = $\frac{1}{1-.25} = 1.333$ since we drew $w_t \sim N(0,1)$. Visualizing this, we see that our values in repeated iterations of the theoretical values to the empirical values confirms that our process worked as intended.
+
+```{r}
+
+emp_mean = c()
+emp_variance = c()
+
+for (i in 1:100) {
+  sim = AR1(delta = 2, phi = 0.5, S=1000)
+  emp_mean = c(emp_mean, mean(sim$time_data))
+  emp_variance = c(emp_variance, var(sim$time_data))
+}
+
+empirical_df = data.frame(emp_mean, emp_variance, iter=1:100)
+
+empirical_df |> 
+  ggplot() +  
+  geom_point(aes(x=iter, y=emp_mean), col='steelblue') + 
+  geom_point(aes(x=iter, y=emp_variance), col='navy') + 
+  geom_hline(yintercept = c(1.33, 4), color = c('yellow', 'purple')) + 
+  labs(
+    y = "Values of AR1 Process",
+    x = "Iteration",
+    title = "Comparison of Theoretical to Empirical Estimates"
+  )
+```
+
+------------------------------------------------------------------------
+
+### Question 5
+
+a.  <i>Write a function to simulate an MA(1) process for an arbitrary $\theta$, assume that $y_0 = 0$.</i>
+
+```{r}
+
+MA1 = function(delta, theta, S) {
+  
+  time_data = c() 
+  w = c()
+  time = 1:S
+  
+  for (t in time) {
+    
+    w_t = rnorm(1, 0, 1)
+    
+    if (t == 1) {
+      y_1 = delta + w_t 
+      time_data = c(time_data, y_1)
+      w = c(w, w_t)
+    } else {
+      y_t = delta + w_t + theta * w[t-1]
+      time_data = c(time_data, y_t)
+      w = c(w, w_t)
+    }
+  }
+  
+  time_df = data.frame(time, time_data) |> 
+    as_tsibble(index = time)
+  
+  return(time_df)
+  
+}
+```
+
+b.  <i>Pick a value of $\theta$, generate at least 1000 samples from this process and compare the empirical mean and variance to the appropriate theoretical values.</i>
+
+Below we have a simulated mean $\approx 1.95$. Compared to a theoretical mean of 2, since $E(y_t) = \delta = 2$, this looks good.
+
+```{r}
+set.seed(829)
+MA_sim = MA1(delta = 2, theta = 2, S=5000)
+MA_sim_mean = mean(MA_sim$time_data)
+print(MA_sim_mean)
+```
+
+c.  <i>Compute the empirical ACF for your simulation, compare this to the values of theoretical autocorrelation function.</i>
+
+    With a simple comparison, we see the theoretical results match very closely to the empirical ACF, with the theoretical results showing as red dots below.
+
+```{r}
+MA_theoretical_acf <- c(1, 2/5, rep(0, 35))
+acf_result <- acf(MA_sim$time_data, plot=FALSE)
+plot(acf_result)
+points(x = acf_result$lag, y = MA_theoretical_acf, type = 'p', col = 'red')
+```
+
+d.  <i>Repeat your simulation in part b. at least 100 times, create a **visualization** to compare your empirical means and variances to the appropriate theoretical values.</i>
+
+Just copying and pasting code from Q4), but changing the theoretical values. With an MA(1) process, the theoretical mean = $\delta = 2$ and the variance = $1(1 + 4) = 5$ since we again drew from $w_t \sim N(0,1)$. However, the variance of the variance is larger than the variance of the mean, which is interesting.
+
+```{r}
+
+emp_mean = c()
+emp_variance = c()
+
+for (i in 1:100) {
+  sim = MA1(delta = 2, theta = 2, S=1000)
+  emp_mean = c(emp_mean, mean(sim$time_data))
+  emp_variance = c(emp_variance, var(sim$time_data))
+}
+
+empirical_df = data.frame(emp_mean, emp_variance, iter=1:100)
+
+empirical_df |> 
+  ggplot() +  
+  geom_point(aes(x=iter, y=emp_mean), col='steelblue') + 
+  geom_point(aes(x=iter, y=emp_variance), col='navy') + 
+  geom_hline(yintercept = c(2, 5), color = c('yellow', 'purple')) + 
+  labs(
+    y = "Values of MA1 Process",
+    x = "Iteration",
+    title = "Comparison of Theoretical to Empirical Estimates"
+  )
+```
+
+------------------------------------------------------------------------
+
+### Question 6
+
+<i>The `tsibbledata` package contains a dataset called `global_economy` which contains economic indicators featured by the World Bank from 1960 to 2017. </i>
+
+a.  <i> Pick a country other than Australia from the 263 provided countries and fit an appropriate ARIMA model to the `Population` data provided. Choose and justify your choice of $p$, $d$, and $q$. Be sure to include any EDA and residual analyses you perform.</i>
+
+```{r}
+pop = tsibbledata::global_economy |>
+  filter(Country == "Ghana")
+```
+
+Initially, we see a strong echoing structure in the ACF plot, so we'll first try differencing.
+
+```{r}
+feasts::gg_tsdisplay(pop, y = Population, plot_type = 'partial')
+```
+
+```{r}
+feasts::gg_tsdisplay(pop, y = difference(Population, 1), plot_type = 'partial')
+```
+
+```{r}
+model(
+  pop, 
+  ARIMA(population ~ pdq(0, 1, 0))
+)
+```
+
+b.  <i> Compare your results to the model choosen automatically by `fable::ARIMA()`. If the models are not the same compare the model fit of the two results: specifically address how similar they are and which did better. </i>
+
+```{r}
+```
