@@ -1,0 +1,7 @@
+---
+title: "HW6"
+author: Will Tirone
+format: pdf
+date: '3/9/23'
+---
+

@@ -1,0 +1,107 @@
+---
+title: "STA 532 Final"
+author: Will Tirone
+format: pdf
+date: '5/1/2023'
+---
+
+```{r echo=FALSE}
+data = data.frame(
+  j = c(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 
+                19, 20, 21, 22, 23, 24),
+  Y_j = c(118, 74, 44, 24, 29, 22, 20, 19, 20, 15, 12, 14, 6, 12, 6, 9, 9, 
+              6, 10, 10, 11, 5, 3, 3)
+)
+
+data
+```
+
+# 5)
+
+```{r}
+# distinct samples 
+n = 501
+
+# define MLE, for c(k,u)
+mle = c(0.491, 4.48)
+
+# define normalized Hessian from problem
+normalized_H = matrix(c(305.82, -48.71, -48.71, 12.86), 2,2,byrow=T)/n
+
+# define pi which we will differentiate
+pi_func = expression((k / (u + k))^k)
+
+pi_deriv_k = D(pi_func, 'k')
+pi_deriv_u = D(pi_func, 'u')
+
+k = mle[1]
+u = mle[2]
+
+deriv_vector = matrix(c(eval(pi_deriv_k), eval(pi_deriv_u)))
+
+mle_asymptotic_variance = t(deriv_vector) %*% normalized_H %*% deriv_vector
+pi_hat = eval(pi_func)
+sig_hat = as.numeric(sqrt(mle_asymptotic_variance))
+moe = 2.24 * (sig_hat/sqrt(n))
+lower = pi_hat - moe  
+upper = pi_hat + moe
+
+# print results 
+cat("Asymptotic variance of MLE :", mle_asymptotic_variance)
+cat("\n")
+cat("Asymptotic SD of MLE :", sqrt(mle_asymptotic_variance))
+cat("\n")
+cat("pi evaluated at MLE : ", pi_hat)
+cat("\n")
+cat("97.5% CI : ", "[", lower, ",", upper, "]")
+```
+
+## 7) Trying to show convergence
+
+```{r}
+
+eps_range = c(0.1,0.01,0.001,0.0001)
+rep = 1000 # number of MC repetitions
+pi_hat = 0.321 # MLE estimate
+
+S = 100000000000
+mc_values = c()
+for (epsilon in eps_range){
+  probability_eval = c()
+  for (i in 1:rep){
+    # draw
+    M = rbinom(1,S,(1-pi_hat))
+    S_hat = M / (1-pi_hat)
+    
+    # evaluate probability and store 
+    val = abs(S_hat / S - 1) > epsilon
+    probability_eval = c(probability_eval, val)
+  }
+  mc_est = mean(probability_eval)
+  mc_values = c(mc_values, mc_est)
+}
+
+mc_values
+```
+
+# 9)
+
+```{r}
+pi_prime = ((u + k) / ((1.5)*u + k))^k
+pi_prime
+```
+
+```{r}
+vals = c()
+for (i in 1:10000){
+  tz = rgamma(1, shape = k, rate = (k/u))
+  xs = rpois(1, lambda= 0.5 *tz)
+  xs_test = xs > 0
+  vals = c(vals, xs_test)
+}
+mean(vals)
+```
+
+```{r}
+1 - pi_prime
+```

@@ -1,0 +1,409 @@
+% Options for packages loaded elsewhere
+\PassOptionsToPackage{unicode}{hyperref}
+\PassOptionsToPackage{hyphens}{url}
+\PassOptionsToPackage{dvipsnames,svgnames,x11names}{xcolor}
+%
+\documentclass[
+  letterpaper,
+  DIV=11,
+  numbers=noendperiod]{scrartcl}
+
+\usepackage{amsmath,amssymb}
+\usepackage{lmodern}
+\usepackage{iftex}
+\ifPDFTeX
+  \usepackage[T1]{fontenc}
+  \usepackage[utf8]{inputenc}
+  \usepackage{textcomp} % provide euro and other symbols
+\else % if luatex or xetex
+  \usepackage{unicode-math}
+  \defaultfontfeatures{Scale=MatchLowercase}
+  \defaultfontfeatures[\rmfamily]{Ligatures=TeX,Scale=1}
+\fi
+% Use upquote if available, for straight quotes in verbatim environments
+\IfFileExists{upquote.sty}{\usepackage{upquote}}{}
+\IfFileExists{microtype.sty}{% use microtype if available
+  \usepackage[]{microtype}
+  \UseMicrotypeSet[protrusion]{basicmath} % disable protrusion for tt fonts
+}{}
+\makeatletter
+\@ifundefined{KOMAClassName}{% if non-KOMA class
+  \IfFileExists{parskip.sty}{%
+    \usepackage{parskip}
+  }{% else
+    \setlength{\parindent}{0pt}
+    \setlength{\parskip}{6pt plus 2pt minus 1pt}}
+}{% if KOMA class
+  \KOMAoptions{parskip=half}}
+\makeatother
+\usepackage{xcolor}
+\setlength{\emergencystretch}{3em} % prevent overfull lines
+\setcounter{secnumdepth}{-\maxdimen} % remove section numbering
+% Make \paragraph and \subparagraph free-standing
+\ifx\paragraph\undefined\else
+  \let\oldparagraph\paragraph
+  \renewcommand{\paragraph}[1]{\oldparagraph{#1}\mbox{}}
+\fi
+\ifx\subparagraph\undefined\else
+  \let\oldsubparagraph\subparagraph
+  \renewcommand{\subparagraph}[1]{\oldsubparagraph{#1}\mbox{}}
+\fi
+
+\usepackage{color}
+\usepackage{fancyvrb}
+\newcommand{\VerbBar}{|}
+\newcommand{\VERB}{\Verb[commandchars=\\\{\}]}
+\DefineVerbatimEnvironment{Highlighting}{Verbatim}{commandchars=\\\{\}}
+% Add ',fontsize=\small' for more characters per line
+\usepackage{framed}
+\definecolor{shadecolor}{RGB}{241,243,245}
+\newenvironment{Shaded}{\begin{snugshade}}{\end{snugshade}}
+\newcommand{\AlertTok}[1]{\textcolor[rgb]{0.68,0.00,0.00}{#1}}
+\newcommand{\AnnotationTok}[1]{\textcolor[rgb]{0.37,0.37,0.37}{#1}}
+\newcommand{\AttributeTok}[1]{\textcolor[rgb]{0.40,0.45,0.13}{#1}}
+\newcommand{\BaseNTok}[1]{\textcolor[rgb]{0.68,0.00,0.00}{#1}}
+\newcommand{\BuiltInTok}[1]{\textcolor[rgb]{0.00,0.23,0.31}{#1}}
+\newcommand{\CharTok}[1]{\textcolor[rgb]{0.13,0.47,0.30}{#1}}
+\newcommand{\CommentTok}[1]{\textcolor[rgb]{0.37,0.37,0.37}{#1}}
+\newcommand{\CommentVarTok}[1]{\textcolor[rgb]{0.37,0.37,0.37}{\textit{#1}}}
+\newcommand{\ConstantTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{#1}}
+\newcommand{\ControlFlowTok}[1]{\textcolor[rgb]{0.00,0.23,0.31}{#1}}
+\newcommand{\DataTypeTok}[1]{\textcolor[rgb]{0.68,0.00,0.00}{#1}}
+\newcommand{\DecValTok}[1]{\textcolor[rgb]{0.68,0.00,0.00}{#1}}
+\newcommand{\DocumentationTok}[1]{\textcolor[rgb]{0.37,0.37,0.37}{\textit{#1}}}
+\newcommand{\ErrorTok}[1]{\textcolor[rgb]{0.68,0.00,0.00}{#1}}
+\newcommand{\ExtensionTok}[1]{\textcolor[rgb]{0.00,0.23,0.31}{#1}}
+\newcommand{\FloatTok}[1]{\textcolor[rgb]{0.68,0.00,0.00}{#1}}
+\newcommand{\FunctionTok}[1]{\textcolor[rgb]{0.28,0.35,0.67}{#1}}
+\newcommand{\ImportTok}[1]{\textcolor[rgb]{0.00,0.46,0.62}{#1}}
+\newcommand{\InformationTok}[1]{\textcolor[rgb]{0.37,0.37,0.37}{#1}}
+\newcommand{\KeywordTok}[1]{\textcolor[rgb]{0.00,0.23,0.31}{#1}}
+\newcommand{\NormalTok}[1]{\textcolor[rgb]{0.00,0.23,0.31}{#1}}
+\newcommand{\OperatorTok}[1]{\textcolor[rgb]{0.37,0.37,0.37}{#1}}
+\newcommand{\OtherTok}[1]{\textcolor[rgb]{0.00,0.23,0.31}{#1}}
+\newcommand{\PreprocessorTok}[1]{\textcolor[rgb]{0.68,0.00,0.00}{#1}}
+\newcommand{\RegionMarkerTok}[1]{\textcolor[rgb]{0.00,0.23,0.31}{#1}}
+\newcommand{\SpecialCharTok}[1]{\textcolor[rgb]{0.37,0.37,0.37}{#1}}
+\newcommand{\SpecialStringTok}[1]{\textcolor[rgb]{0.13,0.47,0.30}{#1}}
+\newcommand{\StringTok}[1]{\textcolor[rgb]{0.13,0.47,0.30}{#1}}
+\newcommand{\VariableTok}[1]{\textcolor[rgb]{0.07,0.07,0.07}{#1}}
+\newcommand{\VerbatimStringTok}[1]{\textcolor[rgb]{0.13,0.47,0.30}{#1}}
+\newcommand{\WarningTok}[1]{\textcolor[rgb]{0.37,0.37,0.37}{\textit{#1}}}
+
+\providecommand{\tightlist}{%
+  \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}\usepackage{longtable,booktabs,array}
+\usepackage{calc} % for calculating minipage widths
+% Correct order of tables after \paragraph or \subparagraph
+\usepackage{etoolbox}
+\makeatletter
+\patchcmd\longtable{\par}{\if@noskipsec\mbox{}\fi\par}{}{}
+\makeatother
+% Allow footnotes in longtable head/foot
+\IfFileExists{footnotehyper.sty}{\usepackage{footnotehyper}}{\usepackage{footnote}}
+\makesavenoteenv{longtable}
+\usepackage{graphicx}
+\makeatletter
+\def\maxwidth{\ifdim\Gin@nat@width>\linewidth\linewidth\else\Gin@nat@width\fi}
+\def\maxheight{\ifdim\Gin@nat@height>\textheight\textheight\else\Gin@nat@height\fi}
+\makeatother
+% Scale images if necessary, so that they will not overflow the page
+% margins by default, and it is still possible to overwrite the defaults
+% using explicit options in \includegraphics[width, height, ...]{}
+\setkeys{Gin}{width=\maxwidth,height=\maxheight,keepaspectratio}
+% Set default figure placement to htbp
+\makeatletter
+\def\fps@figure{htbp}
+\makeatother
+
+\KOMAoption{captions}{tableheading}
+\makeatletter
+\makeatother
+\makeatletter
+\makeatother
+\makeatletter
+\@ifpackageloaded{caption}{}{\usepackage{caption}}
+\AtBeginDocument{%
+\ifdefined\contentsname
+  \renewcommand*\contentsname{Table of contents}
+\else
+  \newcommand\contentsname{Table of contents}
+\fi
+\ifdefined\listfigurename
+  \renewcommand*\listfigurename{List of Figures}
+\else
+  \newcommand\listfigurename{List of Figures}
+\fi
+\ifdefined\listtablename
+  \renewcommand*\listtablename{List of Tables}
+\else
+  \newcommand\listtablename{List of Tables}
+\fi
+\ifdefined\figurename
+  \renewcommand*\figurename{Figure}
+\else
+  \newcommand\figurename{Figure}
+\fi
+\ifdefined\tablename
+  \renewcommand*\tablename{Table}
+\else
+  \newcommand\tablename{Table}
+\fi
+}
+\@ifpackageloaded{float}{}{\usepackage{float}}
+\floatstyle{ruled}
+\@ifundefined{c@chapter}{\newfloat{codelisting}{h}{lop}}{\newfloat{codelisting}{h}{lop}[chapter]}
+\floatname{codelisting}{Listing}
+\newcommand*\listoflistings{\listof{codelisting}{List of Listings}}
+\makeatother
+\makeatletter
+\@ifpackageloaded{caption}{}{\usepackage{caption}}
+\@ifpackageloaded{subcaption}{}{\usepackage{subcaption}}
+\makeatother
+\makeatletter
+\@ifpackageloaded{tcolorbox}{}{\usepackage[many]{tcolorbox}}
+\makeatother
+\makeatletter
+\@ifundefined{shadecolor}{\definecolor{shadecolor}{rgb}{.97, .97, .97}}
+\makeatother
+\makeatletter
+\makeatother
+\ifLuaTeX
+  \usepackage{selnolig}  % disable illegal ligatures
+\fi
+\IfFileExists{bookmark.sty}{\usepackage{bookmark}}{\usepackage{hyperref}}
+\IfFileExists{xurl.sty}{\usepackage{xurl}}{} % add URL line breaks if available
+\urlstyle{same} % disable monospaced font for URLs
+\hypersetup{
+  pdftitle={STA 532 Final},
+  pdfauthor={Will Tirone},
+  colorlinks=true,
+  linkcolor={blue},
+  filecolor={Maroon},
+  citecolor={Blue},
+  urlcolor={Blue},
+  pdfcreator={LaTeX via pandoc}}
+
+\title{STA 532 Final}
+\author{Will Tirone}
+\date{5/1/23}
+
+\begin{document}
+\maketitle
+\ifdefined\Shaded\renewenvironment{Shaded}{\begin{tcolorbox}[boxrule=0pt, interior hidden, sharp corners, frame hidden, enhanced, breakable, borderline west={3pt}{0pt}{shadecolor}]}{\end{tcolorbox}}\fi
+
+\begin{verbatim}
+    j Y_j
+1   1 118
+2   2  74
+3   3  44
+4   4  24
+5   5  29
+6   6  22
+7   7  20
+8   8  19
+9   9  20
+10 10  15
+11 11  12
+12 12  14
+13 13   6
+14 14  12
+15 15   6
+16 16   9
+17 17   9
+18 18   6
+19 19  10
+20 20  10
+21 21  11
+22 22   5
+23 23   3
+24 24   3
+\end{verbatim}
+
+\hypertarget{section}{%
+\section{5)}\label{section}}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{\# j }
+\NormalTok{n }\OtherTok{=} \DecValTok{501}
+
+\CommentTok{\# define MLE, for c(k,u)}
+\NormalTok{mle }\OtherTok{=} \FunctionTok{c}\NormalTok{(}\FloatTok{0.491}\NormalTok{, }\FloatTok{4.48}\NormalTok{)}
+
+\CommentTok{\# define normalized Hessian from problem}
+\NormalTok{normalized\_H }\OtherTok{=} \FunctionTok{matrix}\NormalTok{(}\FunctionTok{c}\NormalTok{(}\FloatTok{305.82}\NormalTok{, }\SpecialCharTok{{-}}\FloatTok{48.71}\NormalTok{, }\SpecialCharTok{{-}}\FloatTok{48.71}\NormalTok{, }\FloatTok{12.86}\NormalTok{), }\DecValTok{2}\NormalTok{,}\DecValTok{2}\NormalTok{,}\AttributeTok{byrow=}\NormalTok{T)}\SpecialCharTok{/}\NormalTok{n}
+
+\CommentTok{\# define pi which we will differentiate}
+\NormalTok{pi\_func }\OtherTok{=} \FunctionTok{expression}\NormalTok{((k }\SpecialCharTok{/}\NormalTok{ (u }\SpecialCharTok{+}\NormalTok{ k))}\SpecialCharTok{\^{}}\NormalTok{k)}
+
+\NormalTok{pi\_deriv\_k }\OtherTok{=} \FunctionTok{D}\NormalTok{(pi\_func, }\StringTok{\textquotesingle{}k\textquotesingle{}}\NormalTok{)}
+\NormalTok{pi\_deriv\_u }\OtherTok{=} \FunctionTok{D}\NormalTok{(pi\_func, }\StringTok{\textquotesingle{}u\textquotesingle{}}\NormalTok{)}
+
+\NormalTok{k }\OtherTok{=}\NormalTok{ mle[}\DecValTok{1}\NormalTok{]}
+\NormalTok{u }\OtherTok{=}\NormalTok{ mle[}\DecValTok{2}\NormalTok{]}
+
+\NormalTok{deriv\_vector }\OtherTok{=} \FunctionTok{matrix}\NormalTok{(}\FunctionTok{c}\NormalTok{(}\FunctionTok{eval}\NormalTok{(pi\_deriv\_k), }\FunctionTok{eval}\NormalTok{(pi\_deriv\_u)))}
+
+\NormalTok{mle\_asymptotic\_variance }\OtherTok{=} \FunctionTok{t}\NormalTok{(deriv\_vector) }\SpecialCharTok{\%*\%}\NormalTok{ normalized\_H }\SpecialCharTok{\%*\%}\NormalTok{ deriv\_vector}
+\NormalTok{pi\_hat }\OtherTok{=} \FunctionTok{eval}\NormalTok{(pi\_func)}
+
+\CommentTok{\# print results }
+\FunctionTok{cat}\NormalTok{(}\StringTok{"Asymptotic variance of MLE :"}\NormalTok{, mle\_asymptotic\_variance)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+Asymptotic variance of MLE : 0.1228559
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{cat}\NormalTok{(}\StringTok{"}\SpecialCharTok{\textbackslash{}n}\StringTok{"}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{cat}\NormalTok{(}\StringTok{"Asymptotic SD of MLE :"}\NormalTok{, }\FunctionTok{sqrt}\NormalTok{(mle\_asymptotic\_variance))}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+Asymptotic SD of MLE : 0.3505081
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{cat}\NormalTok{(}\StringTok{"}\SpecialCharTok{\textbackslash{}n}\StringTok{"}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{cat}\NormalTok{(}\StringTok{"pi evaluated at MLE : "}\NormalTok{, pi\_hat)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+pi evaluated at MLE :  0.3208981
+\end{verbatim}
+
+Numerically finding the confidence interval:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{moe }\OtherTok{=} \FloatTok{2.24} \SpecialCharTok{*}\NormalTok{ (}\FloatTok{1.601}\SpecialCharTok{/}\FunctionTok{sqrt}\NormalTok{(n))}
+\NormalTok{pi\_hat }\SpecialCharTok{{-}}\NormalTok{ moe  }
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+[1] 0.1606767
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{pi\_hat }\SpecialCharTok{+}\NormalTok{ moe}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+[1] 0.4811195
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{\# checking 4.5}
+
+\NormalTok{f }\OtherTok{=} \FunctionTok{expression}\NormalTok{(}\FunctionTok{exp}\NormalTok{(lambda }\SpecialCharTok{+}\NormalTok{ (kappa}\SpecialCharTok{/}\DecValTok{2}\NormalTok{)))}
+\NormalTok{l }\OtherTok{=} \FunctionTok{D}\NormalTok{(f, }\StringTok{\textquotesingle{}lambda\textquotesingle{}}\NormalTok{)}
+\NormalTok{kap }\OtherTok{=} \FunctionTok{D}\NormalTok{(f, }\StringTok{\textquotesingle{}kappa\textquotesingle{}}\NormalTok{)}
+
+\NormalTok{lambda }\OtherTok{=} \FloatTok{4.93}
+\NormalTok{kappa }\OtherTok{=} \FloatTok{0.07}
+
+\FunctionTok{eval}\NormalTok{(f)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+[1] 143.3086
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{m }\OtherTok{=} \FunctionTok{matrix}\NormalTok{(}\FunctionTok{c}\NormalTok{(}\FunctionTok{eval}\NormalTok{(l), }\FunctionTok{eval}\NormalTok{(kap)))}
+\NormalTok{I }\OtherTok{=} \FunctionTok{matrix}\NormalTok{(}\FunctionTok{c}\NormalTok{(}\FloatTok{0.07}\NormalTok{, }\DecValTok{0}\NormalTok{, }\DecValTok{0}\NormalTok{, }\DecValTok{2} \SpecialCharTok{*}\NormalTok{ (}\FloatTok{0.07}\NormalTok{)}\SpecialCharTok{\^{}}\DecValTok{2}\NormalTok{),}\DecValTok{2}\NormalTok{,}\DecValTok{2}\NormalTok{,}\AttributeTok{byrow=}\NormalTok{T)}
+\FunctionTok{t}\NormalTok{(m) }\SpecialCharTok{\%*\%}\NormalTok{ I }\SpecialCharTok{\%*\%}\NormalTok{ m}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+        [,1]
+[1,] 1487.93
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{exp}\NormalTok{(}\DecValTok{2} \SpecialCharTok{*} \FloatTok{4.93} \SpecialCharTok{+} \FloatTok{0.07}\NormalTok{) }\SpecialCharTok{*}\NormalTok{ (}\FloatTok{0.07} \SpecialCharTok{+}\NormalTok{ (}\FloatTok{0.5} \SpecialCharTok{*} \FloatTok{0.07}\NormalTok{)}\SpecialCharTok{\^{}}\DecValTok{2}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+[1] 1462.772
+\end{verbatim}
+
+\hypertarget{trying-to-show-convergence}{%
+\subsection{7) Trying to show
+convergence}\label{trying-to-show-convergence}}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{eps\_range }\OtherTok{=} \FunctionTok{c}\NormalTok{(}\FloatTok{0.1}\NormalTok{,}\FloatTok{0.01}\NormalTok{,}\FloatTok{0.001}\NormalTok{,}\FloatTok{0.0001}\NormalTok{)}
+\NormalTok{rep }\OtherTok{=} \DecValTok{1000} \CommentTok{\# number of MC repetitions}
+\NormalTok{pi\_hat }\OtherTok{=} \FloatTok{0.321} \CommentTok{\# MLE estimate}
+
+\NormalTok{S }\OtherTok{=} \DecValTok{100000000000}
+\NormalTok{mc\_values }\OtherTok{=} \FunctionTok{c}\NormalTok{()}
+\ControlFlowTok{for}\NormalTok{ (epsilon }\ControlFlowTok{in}\NormalTok{ eps\_range)\{}
+\NormalTok{  probability\_eval }\OtherTok{=} \FunctionTok{c}\NormalTok{()}
+  \ControlFlowTok{for}\NormalTok{ (i }\ControlFlowTok{in} \DecValTok{1}\SpecialCharTok{:}\NormalTok{rep)\{}
+    \CommentTok{\# draw}
+\NormalTok{    M }\OtherTok{=} \FunctionTok{rbinom}\NormalTok{(}\DecValTok{1}\NormalTok{,S,(}\DecValTok{1}\SpecialCharTok{{-}}\NormalTok{pi\_hat))}
+\NormalTok{    S\_hat }\OtherTok{=}\NormalTok{ M }\SpecialCharTok{/}\NormalTok{ (}\DecValTok{1}\SpecialCharTok{{-}}\NormalTok{pi\_hat)}
+    
+    \CommentTok{\# evaluate probability and store }
+\NormalTok{    val }\OtherTok{=} \FunctionTok{abs}\NormalTok{(S\_hat }\SpecialCharTok{/}\NormalTok{ S }\SpecialCharTok{{-}} \DecValTok{1}\NormalTok{) }\SpecialCharTok{\textgreater{}}\NormalTok{ epsilon}
+\NormalTok{    probability\_eval }\OtherTok{=} \FunctionTok{c}\NormalTok{(probability\_eval, val)}
+\NormalTok{  \}}
+\NormalTok{  mc\_est }\OtherTok{=} \FunctionTok{mean}\NormalTok{(probability\_eval)}
+\NormalTok{  mc\_values }\OtherTok{=} \FunctionTok{c}\NormalTok{(mc\_values, mc\_est)}
+\NormalTok{\}}
+
+\NormalTok{mc\_values}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+[1] 0 0 0 0
+\end{verbatim}
+
+\begin{aligned}
+\text{coverage}(\gamma; \pi) &= P(\hat{\pi} - 2.24\frac{\hat{\sigma}}{\sqrt{n}} < \pi < \hat{\pi} + 2.24\frac{\hat{\sigma}}{\sqrt{n}} | \pi) \\
+&= P(-2.24 < \frac{\hat{\pi} - \pi}{\hat{\sigma} / \sqrt{n}}  < 2.24 | \pi) \\ 
+&= \Phi(2.24) - \Phi(-2.24) \approx 97.5\%
+\end{aligned}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{sqrt}\NormalTok{(}\FloatTok{0.122}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+[1] 0.349285
+\end{verbatim}
+
+
+
+\end{document}

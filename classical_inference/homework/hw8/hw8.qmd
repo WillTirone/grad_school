@@ -1,0 +1,274 @@
+---
+title: "HW8"
+author: Will Tirone
+format: pdf
+date: '4/21/23'
+---
+
+```{r}
+suppressPackageStartupMessages({
+  library(MASS)
+  library(tidyverse)
+})
+```
+
+# 5.3
+
+## a)
+
+I found it easier to find the complement of event $1-A_n = A_n^c$ first,
+
+With $\mu = 0$, we see that the probability is 1. Then $1-A_n^c = 1-1 = 0$
+
+```{r}
+n=10000
+mu=0
+sd=1
+a = (sqrt(n) / sd) * ((1/n^.25) - mu) 
+b = (sqrt(n) / sd) * (-(1/n^.25) - mu) 
+
+1 - pnorm(a,0,1) - pnorm(b,0,1)
+```
+
+and with $\mu \ne 0$, the probability is 0, so the compliment,$1-A_n^c = 1-0 = 1$
+
+```{r}
+n=10000
+mu=10
+sd=1
+a = (sqrt(n) / sd) * ((1/n^.25) - mu) 
+b = (sqrt(n) / sd) * (-(1/n^.25) - mu) 
+
+1 - pnorm(a,0,1) - pnorm(b,0,1)
+```
+
+## e)
+
+### ii)
+
+Again using the complement, I evaluate $A^c_n$ using n = 10,000, h = 5, and sd=1. We see that this equals 0 $\forall \mu_n$.
+
+```{r}
+n=10000
+h = 5
+mu_n = 5/sqrt(n)
+sd=1
+a = (sqrt(n) / sd) * ((1/n^.25) - mu_n) 
+b = (sqrt(n) / sd) * (-(1/n^.25) - mu_n) 
+
+1 - pnorm(a,0,1) - pnorm(b,0,1)
+```
+
+## g)
+
+Irregularity is problematic because, and confirming with the plots below, $\tilde{\mu}$ does a very poor job of estimating the true parameter from about -0.1 to 0.1. This violates what we want from the N-P Paradigm, so we could not have good error controls over the entire model space using this estimator. So because $\hat{\mu}$ is not irregular we see that it has a constistent value for the expectation over the whole range of true mu values while $\tilde{\mu}$ spikes over certain ranges of values. However, it does well at a true $\mu = 0$, though we wouldn't want to use it unless we were almost certain the true $\mu$ was in fact 0.
+
+```{r}
+A_n = function(X){
+  # function to calculate indicator
+  n = length(X)
+  ind = abs(mean(X)) > (1/n)^0.25
+  return(ind)
+  }
+
+n_list = c(100, 1000, 10000)
+for (n in n_list){
+  true_mu = seq(-3 * n^(-0.25), 3 * n^(-0.25), 0.01)
+  expectation_vals = c()
+  x_bar_means = c()
+  for (mu in true_mu) {
+    
+    # initialize
+    mc_vals = c()
+    x_bar_vals = c()
+  
+    for (i in 1:1000){
+  
+      # monte carlo 
+      X = rnorm(n, mu, 1)
+      X_bar = mean(X)
+      Y_n = (1+A_n(X))/2
+      mu_tilde = X_bar * Y_n
+      
+      # store values 
+      mc_vals = c(mc_vals, mu_tilde)
+      x_bar_vals = c(x_bar_vals, X_bar)
+    }
+    # calculation 
+    mc_mean = mean(mc_vals)
+    xbar_mean = mean(x_bar_vals)
+    expectation = n * mean((mc_mean - mu)^2)
+    x_bar_expect = n * mean((xbar_mean - mu)^2)
+  
+    # storing means 
+    expectation_vals = c(expectation_vals, expectation)
+    x_bar_means = c(x_bar_means, x_bar_expect)
+  }
+  
+  plot(true_mu, expectation_vals, type='l', lwd=3, lty=1, col='dodgerblue')
+  lines(true_mu, x_bar_means, type='l', lwd=3, lty=2, col='brown1')
+  abline(v = n^(-1/4))
+  abline(v = -n^(-1/4))
+}
+```
+
+# 5.5
+
+## a)
+
+```{r echo=FALSE}
+Aus<-matrix(c(292,	290,	81,	170,	608,	171,	29,	37,	175), 3,3, byrow=TRUE)
+Bel<-matrix(c(497,	300,	102,	100,	434,	101,	12,	7,	129), 3,3, byrow=TRUE)
+France<-matrix(c(2085,	936,	592,	1047,	2367,	1255,	74,	57,	1587), 3,3, byrow=TRUE)
+Hungary<-matrix(c(479,	1029,	516,	190,	2615,	3110,	14,	347,	3751), 3,3, byrow=TRUE)
+Italy<-matrix(c(233,	104,	71,	75,	291,	212,	10,	23,	320), 3,3, byrow=TRUE)
+Japan<-matrix(c(465,	159,	285,	122,	258,	307,	21,	20,	333), 3,3, byrow=TRUE)
+Phil<-matrix(c(239,	91,	317,	110,	292,	527,	76,	111,	3098), 3,3, byrow=TRUE)
+Spain<-matrix(c(7622,	3495,	4597,	2124,	9072,	8173,	379,	597,	14833), 3,3, byrow=TRUE)
+USA <-matrix(c(1650,	1618,	694,	641,	2692,	1648,	34,	70,	644), 3,3, byrow=TRUE)
+WG <-matrix(c(3634,	1021,	1068,	850,	1694,	1310,	270,	306,	1927), 3,3, byrow=TRUE)
+WM <-matrix(c(406,	176,	315,	235,	369,	578,	144,	183,	2311), 3,3, byrow=TRUE)
+Yugo <-matrix(c(61,	37,	77,	24,	92,	148,	7,	13,	223), 3,3, byrow=TRUE)
+Den <-matrix(c(79,	55,	25,	34,	119,	48,	2,	8,	84), 3,3, byrow=TRUE)
+Fin <-matrix(c(39,	24,	40,	29,	115,	66,	2,	10,	79), 3,3, byrow=TRUE)
+Nor <-matrix(c(90,	72,	41,	29,	89,	47,	5,	11,	47), 3,3, byrow=TRUE)
+Swed <-matrix(c(89,	81,	27,	30,	142,	48,	1,	3,	29), 3,3, byrow=TRUE)
+
+data = list(Australia = Aus, 
+            Belgium = Bel, 
+            Frane = France, 
+            Hungary = Hungary, 
+            Italy = Italy, 
+            Japan = Japan, 
+            Phillipines = Phil, 
+            Spain = Spain,
+            USA = USA,
+            WestGermany = WG, 
+            WestMalaysia = WM, 
+            Yugoslavia = Yugo, 
+            Denmark = Den, 
+            Finland = Fin, 
+            Norway = Nor, 
+            Sweden = Swed)
+```
+
+### iii) and v)
+
+My methodology was to loop through the countries, rows, and columns, and calculate the statistics of interest. Then, as a comparison, find the difference between $2log\Lambda(X_k,H_I)$ and $T_k$. It seems the values are close in countries like Italy, Yugoslavia, and Finland, and far away in countries like Spain, the Phillipines and Spain.
+
+### vi)
+
+vi) is also calculated below, and is performed by taking the sum of the test statistic across all countries
+
+```{r}
+
+global_sum = c()
+country_name = names(data)
+for (i in 1:length(data)){
+
+  t = data[[i]]
+  country = country_name[i]
+  
+  vals = c() # likelihood ratio vals
+  T_k_values = c() # chi square values
+  
+  n_k = sum(t)
+  r_sum = rowSums(t)
+  c_sum = colSums(t)
+  
+  for (i in 1:3){
+    for (j in 1:3){
+      # select xij value 
+      xij = t[i,j]
+      
+      # calculate statistics 
+      E_ij = (r_sum[i] * c_sum[j])/n_k
+      f = 2 * ((xij * log(xij) - xij) - ((xij * log(E_ij)) - E_ij))
+      vals = c(vals,f)
+      
+      #chi squared stat
+      T_ijk = (xij - E_ij)^2 / E_ij
+      T_k_values = c(T_k_values, T_ijk)
+    }
+  }
+  
+  T_k = sum(T_k_values)
+  V_sum = sum(vals)
+  global_sum = c(global_sum, V_sum)
+  compare = V_sum - T_k
+  p_value = pchisq(V_sum, 4, lower.tail = F)
+  cat(country, 'Difference : ', compare, "; P Value : ", p_value, "\n")
+}
+total = sum(global_sum)
+global_p = pchisq(total, 64, lower.tail=F)
+cat("Global P-Value : ", global_p)
+```
+
+## b)
+
+### iii) / iv) / vi)
+
+Code to optimize and find the maximum log likelihood is below, along with individual country p-values and a global p-value for part vi). In part iv), the test statistic value is 0.855 verified below, and we see that $\delta_1$ and $\delta_3$ are positive, indicating positive inheritance, while $\delta_2$ indicates negative inheritance. So sons actively avoided blue-collar work if their father's had blue collar jobs but were more likely to choose white-collar or farm work if those were their father's professions.
+
+It looks like this is almost completely true for the other countries, which is a bit surprising that farm work does not have negative inheritance. Maybe if the father owns a farm, the son is very likely to take over. It also makes sense that sons with white-collar fathers would most likely not take up a blue-collar job.
+
+```{r}
+log_lkh = function(l_theta, x){
+  theta = exp(l_theta)
+  d1 = theta[1]
+  d2 = theta[2]
+  d3 = theta[3]
+  alpha2 = theta[4]
+  alpha3 = theta[5]
+  beta2 = theta[6]
+  beta3 = theta[7]
+  lambda = theta[8]
+  theta_mat = lambda * matrix(c(d1, beta2, beta3,
+                              alpha2, d2 * alpha2 * beta2, alpha2 * beta3,
+                              alpha3, alpha3 * beta2, d3 * alpha3 * beta3),3,3,
+                              byrow=T)
+  log_mat = log(theta_mat)
+  f = -sum(x * log_mat - theta_mat)
+  f
+}
+
+global_sum = c()
+for (i in 1:length(data)){
+
+  t = data[[i]]
+  opt = optim(par = c(1,1,1,1,1,1,1,1), log_lkh, x = t, method="BFGS")
+  delta = opt$par[1:3]
+  mle = -opt$value 
+  country = country_name[i]
+  
+  vals = c() # likelihood ratio vals
+  
+  for (i in 1:3){
+    for (j in 1:3){
+      
+      # select xij value 
+      xij = t[i,j]
+
+      # calculate statistic 
+      f = xij * log(xij) - xij
+      vals = c(vals,f)
+      
+    }
+  }
+  lrt = 2 * (sum(vals) - mle)
+  global_sum = c(global_sum, lrt)
+  p_value = pchisq(lrt, 4, lower.tail = F)
+  cat(country, 'Value : ', lrt, "; P-Value : ", p_value, "\n")
+  cat(country, 'delta values : ', delta, "\n", "\n")
+  
+}
+total = sum(global_sum)
+global_p = pchisq(total, 64, lower.tail=F)
+cat("Global P-Value : ", global_p)
+```
+
+### v)
+
+First, we note that we now have a chi-squared distribution with 1 degree of freedom, since the full parameter space has dimension 9 and our restricted space, $\Theta_Q$ has dimension 8 since we now have 8 parameters, $\lambda_k, \{ \alpha_{ik}\}_{2}^{3},\{\beta\}_{2}^{3}, and \ \delta_1, \delta_2, \delta_3.$
+
+Now, I would grid search across ranges of the parameters, and for each distinct combination of parameters, create 10,000 synthetic data sets by drawing each $X_{ijk}$ from a POIS$(\theta^{(k)}_{ij})$, compute the statistic $2log\Lambda(X_k;H_Q)$, average across the data sets to create an MC average, plot a histogram of the average statistic, and visually compare to a $\chi^2_1$ and see if they match. It should look similar regardless of the combination of parameters if it is truly from the distribution.
