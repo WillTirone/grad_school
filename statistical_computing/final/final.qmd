@@ -1,0 +1,69 @@
+```{r}
+library(tidyverse)
+library(rvest)
+library(polite)
+library(stringr)
+```
+
+# Cost of the World Cup 
+
+Reading: https://crossworks.holycross.edu/econ_working_papers/180/
+
+```{r}
+
+url = "https://en.wikipedia.org/wiki/Economics_of_the_FIFA_World_Cup"
+bow = polite::bow(url)
+
+# scrape the wiki table for costs 
+out = 
+  polite::scrape(bow) |> 
+  html_nodes('table.wikitable') |> 
+  html_table(fill = TRUE)
+
+# regex steps to get numbers out 
+# and convert to numeric 
+hist_costs = out[[1]] |> 
+  rename(host = "Host",
+         cost = "General cost") |> 
+  separate(cost, c(NA,"cost",NA), sep = '[$[]') |> 
+  separate(cost, c("cost", NA), sep = '[bm]') |> 
+  separate(cost, c("cost",NA), sep = '[(]') |> 
+  separate(host, c("host", "year", NA), sep='[()]') |> # pull out year 
+  mutate(across(where(is.character), str_trim)) |> # strips white space 
+  transform(cost = as.numeric(cost)) |> 
+  arrange(cost)
+
+# USA has dollar value in millions, not billions, so manually adjusting 
+# check another source though 
+hist_costs[hist_costs["host"] == "USA", "cost"] = 
+  hist_costs[hist_costs["host"] == "USA", "cost"] / 1000
+
+# bar plot 
+hist_costs |> 
+  ggplot() + 
+  geom_bar(aes(x=host, y=cost,fill=year),stat='identity') + 
+  labs(title = "Cost of Hosting World Cup",
+       y = "Cost in Billions (USD)",
+       x = "Host Country") 
+```
+
+*"Despite the fact Qatar's World Cup will take place in November and December -- when the temperature is around 20 degrees Celsius; perfect for players and fans -- the SC has continued to develop cooling technologies in order to provide a strong tournament legacy.*
+
+*Dr. Saud explained: "Our stadiums can be used 24/7, all year round, leaving a legacy for Qatar after the tournament -- and leaving no white elephants.""*
+
+```{r}
+# plot average temperature 
+
+```
+
+Cost Table of Stadiums, maybe compare to other stadiums
+
+https://www.sportingnews.com/us/football/news/cost-world-cup-qatar-how-much-paid-fifa-most-expensive-2022/i69pi7uree5ctahcjyuzd9fn
+
+Air Cooled Stadiums
+
+https://www.fifa.com/tournaments/mens/worldcup/qatar2022/news/dr-cool-the-mastermind-behind-qatar-2022-s-air-cooled-stadiums
+
+Resources:
+
+https://www.r-bloggers.com/2021/07/politely-scraping-wikipedia-tables-2/

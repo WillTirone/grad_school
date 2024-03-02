@@ -1,0 +1,393 @@
+---
+title: "The Impacts of the 2022 FIFA World Cup in Qatar"
+subtitle: "Sta 523 - Final Project"
+format: 
+  html:
+    self-contained: true
+author:
+- Alonso Guerrero Castaneda
+- Will Tirone
+- Natalie Smith
+- Eli Gnesin
+---
+
+## Setup
+
+```{r setup, include = FALSE}
+library(tidyverse)
+library(ggplot2)
+library(rvest)
+library(polite)
+library(stringr)
+library(kableExtra)
+library(lubridate)
+library(patchwork)
+library(wordcloud)
+library(wordcloud2)
+library(tm)
+library(tidytext)
+
+knitr::opts_chunk$set(include=TRUE, echo = TRUE, message = FALSE, 
+                      warning = FALSE, error = FALSE, 
+                      fig.align='center'
+                      )
+```
+
+## Introduction
+
+The 2022 World Cup has become a global conversational topic, not just on the matter of football, but particularly on the matter of human rights. The following report analyzes the impact of the 2022 World Cup in Qatar. We collected data from three different data sets to tell a story about the FIFA World Cup in Qatar. The first part of our analysis reflects on soccer in Qatar throughout the past quarter-century, particularly noting standings and improvement. Here, we looked at ties, wins, and losses, as well as FIFA rankings, leading up to this World Cup. We then wanted to weight this analysis by looking at data regarding the deaths of stadium workers (looking at age, project, and cause of death), as well as stadium-building costs. Unlike other host countries with pre-existing stadiums, Qatar had to completely build their stadiums from scratch - an astronomical construction project and financial cost.
+
+## Football in Qatar
+
+For all discussion on the different stakeholders in the FIFA World Cup in Qatar, and the effect of the World Cup on the people and government of Qatar, the World Cup is foremost a soccer tournament. In this vein, it is important to ask how the awarding of the World Cup in December 2010 has impacted the Qatar Football Association.
+
+FIFA has been publishing a Men's World Ranking since December of 1992, and although the ranking criteria and formula has changed several times in the 30 years since, the relative rankings of teams is still a useful metric of understanding a football association's standing compared to other nations. The [dataset](https://www.kaggle.com/datasets/cashncarry/fifaworldranking), available on Kaggle, was collected directly from FIFA's website, which contains the entire history of their rankings. Similarly, FIFA's website contains a history of every fixture played by teams, which also is copied over to Wikipedia, and from Wikipedia I will be scraping every Qatar men's fixture since the year 2000:
+
+```{r rankings-and-results-wrangling}
+rankings = read.csv("fifa_ranking-2022-10-06.csv", header= TRUE) %>%
+    separate(rank_date, c("year", "month", "day"), remove = FALSE) %>%
+    filter(year >= 2000) %>%
+    mutate(dtnum = 10000*as.numeric(year) + 
+             100*as.numeric(month) + 
+             as.numeric(day),
+           rank_date = as.Date(rank_date))
+
+fixurl1 = "https://en.wikipedia.org/wiki/Qatar_national_football_team_results"
+fixurl2 = paste0("https://en.wikipedia.org/wiki/Qatar_national",
+                     "_football_team_results_(2020%E2%80%93present)")
+
+fixtures1 = read_html(fixurl1)
+fixtures2 = read_html(fixurl2)
+
+earlyfixtures =  fixtures1 %>%
+  html_elements(".org a , .attendee+ td span b") %>%
+  html_text2() %>%
+  trimws()
+
+early_dates = fixtures1 %>%
+  html_elements("td:nth-child(1) span") %>%
+  html_text() %>%
+  str_extract("(([0-9]+)\\s([a-zA-Z]+)\\s(20[0-9][0-9]))") %>%
+  na.omit()
+
+early_types = fixtures1 %>%
+  html_elements("td:nth-child(1) small a") %>%
+  html_text() %>%
+  append(rep("2010 FIFA World Cup qualification", 2), after = 118) %>%
+  append(rep("18th Arabian Gulf Cup", 3), after = 110)
+
+fx1 = tibble(
+    date = early_dates,
+    type = early_types,
+    home = earlyfixtures[seq(from = 1, to = length(earlyfixtures), by = 3)],
+    score = earlyfixtures[seq(from = 2, to = length(earlyfixtures), by = 3)],
+    away = earlyfixtures[seq(from = 3, to = length(earlyfixtures), by = 3)]
+  )
+
+laterfixtures = fixtures2 %>%
+  html_elements(".attendee+ td span b , .attendee") %>%
+  html_text2() %>%
+  trimws() %>%
+  .[1:(length(.)-11)] %>%
+  append(c("2-0", "Qatar"))
+
+later_types = fixtures2 %>%
+  html_elements("td:nth-child(1) small a") %>%
+  html_text() %>%
+  .[1:(length(.)-3)]
+
+later_dates = fixtures2 %>%
+  html_elements("td:nth-child(1) span") %>%
+  html_text() %>%
+  .[1:length(later_types)]
+
+fx2 = tibble(
+  date = later_dates,
+  type = later_types,
+  home = laterfixtures[seq(from = 1, to = length(laterfixtures), by = 3)],
+  score = laterfixtures[seq(from = 2, to = length(laterfixtures), by = 3)],
+  away = laterfixtures[seq(from = 3, to = length(laterfixtures), by = 3)]
+)
+
+fixtures = bind_rows(fx1, fx2) %>%
+  separate(date, c("day", "month", "year")) %>%
+  separate(score, c("hscore", "ascore"), convert = TRUE) %>%
+  mutate(month = match(month, month.name))  %>%
+  unite(date, c("year", "month", "day"), sep = "-", remove=FALSE) %>%
+  mutate(date= as.Date(date)) %>%
+  mutate(dt = 10000*as.numeric(year) + 
+             100*as.numeric(month) + 
+             as.numeric(day)) %>%
+  mutate(result = case_when(
+    hscore == ascore & home == "Qatar" ~ "Draw",
+    hscore == ascore & away == "Qatar" ~ "Draw",
+    hscore < ascore & home == "Qatar" ~ "Loss",
+    ascore < hscore & away == "Qatar" ~ "Loss",
+    hscore > ascore & home == "Qatar" ~ "Win",
+    ascore > hscore & away == "Qatar" ~ "Win"
+  ))
+```
+
+A couple of data wrangling issues had to be resolved before any analysis was done. First, the Wikipedia table of Qatar's fixtures did not include their most recent game, against the Netherlands on 11/29/2022, so that game was collected from [this link](https://www.espn.com/soccer/report?gameId=633821). Second, the fixtures list also included 3 other games yet to be played (which will take place in December 2022), which were removed from the table. I then mutated the dates into more usable forms in both tables, separated by day, month, and year, in the hopes of joining the tables to look at Qatar's competition over this time period by looking at Qatar's results in conjunction with both their and their opponents rankings. Trying to wrangle both dataframes together proved to be a difficult endeavor, with the date mismatch between the two causing issues in merging the tibbles correctly. Finally, we added a column to the fixtures table to indicate the match result, being a win, loss, or draw.
+
+```{r results-barplot}
+ggplot(fixtures) +
+  geom_bar(aes(x = year, fill = result), position = "fill") +
+  theme(axis.text.x = element_text(angle = 90)) +
+  labs(title = "Proportion of Qatar Results by Year",
+       x = "Year",
+       y = "Proportion",
+       color = "Result") +
+  scale_fill_brewer()
+```
+
+```{r rankings-lineplot}
+ggplot() +
+  geom_line(dat = rankings %>%
+              group_by(confederation, rank_date) %>%
+              summarize(rk = mean(rank)),
+            aes(x = rank_date, y = rk, 
+                color = confederation, group = confederation), alpha = 0.7) +
+  geom_line(data = rankings %>% 
+              filter(country_full == "Qatar") %>%
+              group_by(rank_date) %>%
+              summarize(rk = rank,
+                        country = "Qatar"),
+            aes(x = rank_date, y = rk, group = country), color = "black", size = 0.9) +
+  geom_vline(dat = rankings, aes(x = rank_date), 
+             xintercept = date("2011-01-12"), 
+             color = "lightslategrey", linetype="dashed") +
+  geom_vline(dat = rankings, aes(x = rank_date), 
+             xintercept = date("2018-08-15"), 
+             color = "lightslategrey", linetype="dashed") +
+  scale_y_reverse() +
+  scale_x_date(date_breaks = "1 year", date_labels = "%b-%Y") +
+  theme(axis.text.x = element_text(angle = 90)) +
+  labs(title = "Qatar (black) vs. Confederations by year",
+       x = "Year",
+       y = "Ranking",
+       color = "Group")
+```
+
+Looking at the proportion of Wins, Losses, and Ties from the Qatar Football Team over the years, there does not appear to be any significant trend between before 2011 (before Qatar had been awarded the World Cup), and after 2011 (after Qatar was awarded the World Cup.) However, looking at the trend of Qatar's ranking versus the mean rankings by confederation for each ranking period, it becomes obvious that Qatar's ranking has shot up over the last 5 years, since the 2018 World Cup in Russia (which they did not play in). Qatar, which has consistently been above the average ranking for Asian Football Confederation (AFC) teams, has, since 2019, also had a higher ranking than the average UEFA team as well. Looking at the two plots together, the spike in 2019 would seem with two strong years in 2017 and 2018, but more likely is a product of FIFA changing their ranking procedures in the Fall of 2018 in a way that benefitted Qatar specifically.
+
+```{r October-2022-Rankings}
+rankings %>%
+  filter(year == 2022 & month == 10) %>%
+  filter(country_full %in% c("Qatar", "Ecuador", "Senegal", "Netherlands",
+                             "IR Iran", "Japan", "Korea Republic", 
+                             "Australia", "Saudi Arabia")) %>%
+  select(country_full, confederation, rank) %>%
+  arrange(rank) %>%
+  kable() %>%
+  kable_styling(full_width = F)
+```
+
+When focusing specifically on the 2022 World Cup, however, it is important to note that Qatar was, by ranking, the worst of the 4 teams in its group. It was also, of the six teams from the AFC that advanced to the World Cup, the second worst by ranking, only one spot ahead of Saudi Arabia. They proceeded to play their three group games, losing by a combined score of 7-1, becoming the [second host](https://theathletic.com/3934896/2022/11/25/qatar-hosts-world-cup-group-qualifying/) to fail to advance from the group stage and the first host to fail to win a game or even earn a point in a World Cup. However, simply for participating in the group stage, Qatar's Football Association drew a total of [10.5 million](https://www.fifa.com/tournaments/mens/worldcup/qatar2022/news/fifa-president-welcomes-participants-to-team-seminar) from FIFA.
+
+The question of whether being awarded the FIFA World Cup benefit Qatar's soccer performance is difficult to answer from a causal inference perspective. However, the trends and recent results give us some insights on the question. On one side, Qatar had inarguably been trending up, to the point of being a better than average team in 5 of the 6 confederations (all except for CONMEBOL in South America), and had a fairly strong record over the last 4 years, culminating in an Asian Cup win in 2021. They had improved to the point of not even being the worst qualified team by ranking from their own confederation, besting Saudi Arabia by 1 spot. On the other side, the Qatar football team proceeded to lose all 3 games at the World Cup, putting in the worst showing by a host country in the history of the event, for a sum total of \~\$10.5 million.
+
+## Human toll
+
+Undoubtedly, one of the major criticisms of the 2022 World Cup is the alleged human rights violations against migrant workers. Qatar has built seven stadiums for the event, as well as a new airport, metro system and series of roads, among other [(BBC, 2022)](https://www.bbc.com/news/world-60867042 "BBC"). To do so, 1.5 millions migrant workers were employed ([The Sporting News, 2022](https://www.sportingnews.com/us/soccer/news/how-many-workers-died-qatar-world-cup-stadiums-deaths-migrants/s39zabky4petscz4letzlhxg "Sports")). Several news outlets and organizations have claimed that more than a thousand migrant deaths are linked to the working conditions of building the World Cup's infrastructure. Specifically, the intense heat under which the workers had been exposed proved fatal for many of them.
+
+The exact number is far from clear: Qatari authorities have argued that the international estimates measure are wildly inaccurate, arguing estimates also include non-work related deaths. However, it is important to note that what constitutes a work-related is not that obvious. For example:
+
+*'Death certificates for deceased migrant workers in Qatar frequently cite "cardiac arrest" as the cause, suggesting their deaths were not work-related. But the reality is that most of these people are young and healthy; indeed, all workers must pass a basic "fit for work" health screening before obtaining a Qatari work visa. And so the high rate of cardiovascular disease listed as the cause of death among migrant workers in the country points to some other cause of the problem.'* [(Time, 2022)](https://time.com/6227277/qatar-extreme-heat-world-cup-2022/ "Time")
+
+And there is much economic incentive in not cataloging certain deaths as work-related:
+
+*'Qatar's labor law requires employers to pay compensation only if a death is work related, which is usually, narrowly interpreted as taking place at the work site. A heart attack that occurs in worker accommodations at the end of a strenuous day (....) doesn't qualify.'* [(Time, 2022)](https://time.com/6227277/qatar-extreme-heat-world-cup-2022/ "Time")
+
+Nevertheless, with official government data, we have a public record for each recognized fatality of a migrant worker. Qatar's annual Workers' Welfare Progress reports document those instances. Journalists from USA Today compiled them into a table ([Huack & Hagen, 2022](https://www.usatoday.com/story/sports/2022/11/30/migrant-worker-deaths-qatar-world-cup-database/10795974002/ "USA Today"), [USA Today, 2022](https://c0cqk195.caspio.com/dp/490830007ac0c582a4ba4f2a9e59 "us")), which we downloaded and have analyzed for this section.
+
+Again, we have to be wary of the data. In total, we have 39 migrant worker fatalities reported from 2016 to 2021. Only 3 of them are officially registered as "work-related". Given the aforementioned complications, we will ignore this variable in our analysis, and assume that all deceased migrant workers from stadium projects had a direct or indirect work-related cause.
+
+First we'll do some data cleaning and pre-processing. We divide the nationalities of the workers into the first 2 most common ones and an "Others" category. We turn the date of death into an appropriate format and classify projects between "stadium", "other" or "unknown".
+
+```{r}
+death_df = read_csv("worldcup.csv")
+
+# Top 2 countries
+list_countries = death_df %>%
+  filter(endsWith(project, 'Stadium')) %>%
+  count(nationality) %>%
+  arrange(desc(n)) %>%
+  head(2) %>%
+  select(nationality) 
+
+death_df = death_df %>%
+  mutate(date = ifelse(is.na(date), '01/01/2016', date), # 2 unknown dates are assigned the first day of the first year of record
+         date = mdy(date),# turn to date type
+         year = year(date),
+         stadium = case_when(endsWith(project, 'Stadium') ~ 'Stadium',
+                             project == 'Unknown' ~ project,
+                             TRUE ~ 'Other'),
+         country = ifelse(nationality %in% list_countries$nationality, nationality, 'Others'))
+
+head(death_df)
+```
+
+We will now analyze the data. Including only stadium infrastructure projects, the following plots want to answer these questions:
+
+-   \(1\) what is the cumulative sum of migrant works through the years, by the nationality of migrants
+
+-   \(2\) the age distribution of the deceased, by nationality. Regarding the first, we see that the highest spike death toll was from 2018 to 2019.
+
+Something odd is the striking difference in age between Nepalese migrants and others - in particular, the age difference between them and their Indian counterparts.
+
+```{r}
+years= death_df %>% 
+  select(year) %>%
+  distinct()
+
+death_df %>%
+  filter(stadium == 'Stadium') %>%
+  count(country, year) %>%
+  complete(country, year) %>%
+  mutate(n = ifelse(is.na(n), 0, n)) %>%
+  group_by(country) %>%
+  mutate(n = cumsum(n)) %>%
+  ggplot(
+    aes(x = year, y = n, fill = country)
+  ) +
+  geom_area() +
+  scale_fill_brewer(direction=-1)+
+  labs(title = "Cumulative death toll of immigrant workers in \n stadium construction projects",
+       y = "Cumulative death toll",
+       fill = "Country of origin")
+
+death_df %>%
+  filter(stadium == 'Stadium') %>%
+  ggplot(
+    aes(x = country, y = age, fill = country)
+  )+
+  geom_boxplot()+
+  scale_fill_brewer(direction=-1)+
+  labs(title = "Age distribution of deceased immigrant workers in \n stadium construction projects",
+       y = "Age at the time of death",
+       fill = "Country of origin")+
+  theme(legend.position = "none")
+
+```
+
+We also want to analyze different demographics between the types of projects. However, something that we take away from this plot is the number of people who died in "unknown" projects. Since Qatar is such a small country, it is difficult to believe that the authorities didn't know which projects did they were working on.
+
+```{r}
+
+death_df %>%
+  ggplot(aes(x = factor(stadium, levels = c('Stadium', 'Unknown', 'Other')), 
+        fill = country))+
+  geom_bar()+
+  scale_fill_brewer(direction=-1)+
+  labs(title = "Number of Deceased by Type of \n Infrastructure Project",
+       x = "Type of infrastructure",
+       y = NULL,
+       fill = "Country of origin")
+```
+
+We have a description of the incident for each row. Since qualitative data is not easily plotted, we opted for a different approach. To summarize the information contained there, we decided to generate a word cloud. We used an article by [Van den Rul (2019)](https://towardsdatascience.com/create-a-word-cloud-with-r-bde3e7422e8a "van de") as a reference for performing this analysis.
+
+```{r}
+
+
+docs = Corpus(VectorSource(death_df$description))
+docs <- docs %>%
+  tm_map(removeNumbers) %>%
+  tm_map(removePunctuation) %>%
+  tm_map(stripWhitespace)
+docs <- tm_map(docs, content_transformer(tolower))
+docs <- tm_map(docs, removeWords, stopwords("english"))
+dtm <- TermDocumentMatrix(docs) 
+matrix <- as.matrix(dtm) 
+words <- sort(rowSums(matrix),decreasing=TRUE) 
+df <- data.frame(word = names(words),freq=words)
+
+set.seed(1)
+wordcloud(words = df$word, freq = df$freq, min.freq = 1,           
+          max.words=200, random.order=FALSE, rot.per=0.35,            
+          colors=brewer.pal(8, "Dark2"))
+```
+
+Words that may indicate some relationship between stadium-building under life-threatening heat may include: "heart" (as in, heart problem), "passed" (as in, passed away), "stadium"... all of them relatively big in the word cloud, indicating that is they have frequently been used in the fatalities' descriptions.
+
+## Economic analysis
+
+Below, we scraped Wikipedia for a chart of total costs for the past 9 world cups. At least currently, the economics are not on Qatar's side. It seems to be part of popular conversation every time the Olympics or a World Cup is hosted to mention how it makes little economic sense to build expensive stadiums and infrastructure for it to never be used again or be used only minimally.
+
+We were surprised to find that less than \$10 billion was spent on 7 stadiums over the past 10 years in preparation while the rest was used for "transportation, hospitality, telecommunications, and security infrastructure" [Sportico Article](https://www.sportico.com/business/finance/2022/world-cup-economics-qatar-record-spending-1234694134/). Though not adjusted for inflation, \$10 billion alone would be greater than the expenditure on every World Cup prior to 2014. Projected revenues, according to the Sportico article, solely during the event for 1.3 million guests spending \$300 a day would be around \$1.56 billion. The goal, then, is clearly not just financial, but to gain international recognition. Though perhaps revenues will continue years after 2022 through transportation and facility usage costs, it seems impossible the World Cup will make net income. It is certainly a convenient and convincing public works expenditure project to build new infrastructure to further develop the country, but it begs the question whether or not it makes sense to build things like soccer stadiums in the middle of a desert. From [FIFA](https://www.fifa.com/tournaments/mens/worldcup/qatar2022/news/dr-cool-the-mastermind-behind-qatar-2022-s-air-cooled-stadiums):
+
+*"Despite the fact Qatar's World Cup will take place in November and December -- when the temperature is around 20 degrees Celsius; perfect for players and fans -- the SC has continued to develop cooling technologies in order to provide a strong tournament legacy.*
+
+*Dr. Saud explained: "Our stadiums can be used 24/7, all year round, leaving a legacy for Qatar after the tournament -- and leaving no white elephants."*
+
+While they claim that the stadiums could be used year-round with climate-controlled stadiums, this seems on a surface level environmentally unwise.
+
+Fully understanding the economics, though, is a nearly impossible task. The Qatari government is intentionally not transparent about migrant working conditions or its financial positions and projected revenues, and of course, why would they be? With an economic and social condition that seems disastrous to onlookers, it would not be in their best interest to be upfront about expected costs and migrant death counts.
+
+```{r}
+
+url = "https://en.wikipedia.org/wiki/Economics_of_the_FIFA_World_Cup"
+bow = polite::bow(url)
+
+# scrape the wiki table for costs 
+out = 
+  polite::scrape(bow) |> 
+  html_nodes('table.wikitable') |> 
+  html_table(fill = TRUE)
+
+# regex steps to get numbers out 
+# and convert to numeric 
+hist_costs = out[[1]] |> 
+  rename(host = "Host",
+         cost = "General cost") |> 
+  separate(cost, c(NA,"cost",NA), sep = '[$[]') |> 
+  separate(cost, c("cost", NA), sep = '[bm]') |> 
+  separate(cost, c("cost",NA), sep = '[(]') |> 
+  separate(host, c("host", "year", NA), sep='[()]') |> # pull out year 
+  mutate(across(where(is.character), str_trim)) |> # strips white space 
+  transform(cost = as.numeric(cost)) |> 
+  arrange(cost)
+
+# USA has dollar value in millions, not billions, so manually adjusting 
+# check another source though 
+hist_costs[hist_costs["host"] == "USA", "cost"] = 
+  hist_costs[hist_costs["host"] == "USA", "cost"] / 1000
+
+# bar plot 
+hist_costs |> 
+  ggplot(aes(x=year, y=cost)) + 
+  geom_bar(stat='identity', fill = "lightblue") +
+  geom_bar(data = hist_costs %>% filter(host == "QAT"), 
+           stat='identity', fill = "darkorange") +
+  geom_text(aes(label = host, vjust = -.6), size = 3) +
+  labs(title = "Cost of Hosting World Cup",
+       y = "Cost in Billions (USD)",
+       x = "World Cup Year") 
+```
+
+```{r}
+hist_costs %>% 
+  dplyr::group_by(host) %>%
+  summarize(sum = sum(cost))
+```
+
+## Conclusion
+
+The Qatar World Cup was a costly proposal and investment to carry through, beyond finances alone. Qatar had to build all of its stadiums from rubble, making its World Cup cost nearly four times as much as the previous eight world cups, combined. It seemed impossible to successfully build the accommodations necessary to host a World Cup in so little time with so few pre-existing resources. Importantly, the human cost has been tremendous.
+
+Migrant workers, many from India and Nepal, experienced terrible working and living conditions. Qatar is hot; 90-minute soccer matches were postponed until the Fall to accommodate for these high temperatures, whereas migrant workers would complete full labor-intensive workdays in the summer heat. So, perhaps it is no surprise of the numerous deaths recorded, many being "cardiac arrest" (the most general cause-of-death statement that can be made). As discussed previously, these cardiac arrest incidents are most likely not reflective of the health status of the workers. While pre-screening still took place, it is remarkable to note that for Nepali citizens, most deaths were under age 30. A project where young and healthy die is clearly not a safe one.
+
+While Qatar soccer has been improving in FIFA rankings over the past five years, this improvement (and home-field advantage) was not enough for Qatar to advance beyond the preliminary stage in the 2022 World Cup. However, perhaps the World Cup here is a stepping stone toward future football success, as more resources and attention on Qatar could help the nation's football team become more recognizable.
+
+Resources:
+
+1.  https://www.r-bloggers.com/2021/07/politely-scraping-wikipedia-tables-2/
+
+2.  https://crossworks.holycross.edu/econ_working_papers/180/
+
+3.  https://www.sportingnews.com/us/football/news/cost-world-cup-qatar-how-much-paid-fifa-most-expensive-2022/i69pi7uree5ctahcjyuzd9fn
+
+4.  https://www.fifa.com/tournaments/mens/worldcup/qatar2022/news/dr-cool-the-mastermind-behind-qatar-2022-s-air-cooled-stadiums
+
+5.  https://www.sportico.com/business/finance/2022/world-cup-economics-qatar-record-spending-1234694134/

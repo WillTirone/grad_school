@@ -1,0 +1,177 @@
+---
+title: "Homework 2 - Tidy data"
+format: 
+  html:
+    self-contained: true
+author:
+- Pang, Ruixin
+- Tirone, William
+- Zhang, Huanming
+- Zhou, Xingzhi
+---
+
+## Setup - Load packages
+
+```{r setup, include = FALSE}
+library(tidyverse)
+library(dplyr)
+```
+
+## Task 1 - Bayesian posterior samples
+
+```{r load_schools}
+schools = readRDS("data/8schools.rds")
+```
+
+### Question 1
+
+```{=html}
+<!--
+1. We have claimed that is a tidy representation of these data, explain why this is the case. Your answer should touch on the unit of observation and why this might be preferred to a wide representation (where the parameters are stored as columns within the data frame).
+-->
+
+Based on the requirements of a tidy data set, which are: 1) every column is a variable, 2) every row is an observation, and 3) every cell is a single value, we believe this data set is tidy. 
+In the current data set, we defined one variable in one draw in a chain as the unit of observation. However, we may change the unit of observation by using a wide representation. For example, we might use one draw in one chain as the unit of observation. If we did that, we need to add 18 columns with the current unique schools$.variable as the new column names, and its corresponding values as the observation values. By doing that, we may change the unit of observation. 
+If we used the wider representation like what we mentioned before, where the parameters are stored as columns within the data frame, then we can greatly reduce the number of the observation in this data set. Also, if we need to calculate the five number summary of overall mean effect like Question 2, we do not need to create a new data frame and it can be calculated easier. 
+```
+### Question 2
+
+```{=html}
+<!--
+2. Report a standard five number summary of the posterior of the overall mean effect ($\mu$) for the schools for each chain.
+-->
+```
+```{r task1_q2}
+schools %>%
+  filter(.variable == "mu") %>%
+  group_by(.chain) %>%
+  summarise(
+    .min = min(.value),
+    .q1 = quantile(.value, probs = 0.25),
+    .mean = mean(.value),
+    .q3 = quantile(.value, probs = 0.75),
+    .max = max(.value)
+  )
+```
+
+### Question 3
+
+```{=html}
+<!--
+3. Report the mean and standard deviation of the posterior means of the individual school effects ($\eta_i$s) for each chain.
+-->
+```
+```{r task1_q3}
+schools %>%
+  filter(.variable == "eta") %>%
+  group_by(.chain, i) %>%
+  summarise(
+    .mean = mean(.value),
+    .std = sd(.value)
+  )
+```
+
+### Question 4
+
+```{=html}
+<!--
+4. Given the posterior samples we can ask more complex questions, for example for each iteration which school had the most successful coaching program by comparing the values of $\theta_i$ for that iteration (and chain). Of the 1000 posterior draws calculate the percentage of the iterations where each school had the largest $\theta$ for each chain.
+-->
+```
+```{r task1_q4}
+schools %>%
+  filter(.variable == 'theta') %>%
+  group_by(.chain,.iteration) %>%
+  summarize(
+    i.max = which.max(.value)
+  ) %>%
+  group_by(.chain,i.max) %>%
+  summarise(
+    percent = n()/1000*100
+  )
+
+```
+
+## Task 2 - Lego Sales Data
+
+```{r load_sales, message = FALSE}
+sales = readRDS("data/lego_sales.rds")
+```
+
+### Tidying the data
+
+Below, we converted to a tibble first as we were following this vignette: https://tidyr.tidyverse.org/articles/rectangle.html. Trying to convert the sales straight to a datframe resulted in an error. Per instructions in class, the tibble has a nicer print method that makes manually inspecting it easier, which is partially how we chose what to unnest.
+
+Then, we just unnested the sales and purchases data. This was done iteratively and by viewing the resulting output to see how much more it needed to be unnested. For example, we started by just unnesting sales. Then, we could see that purchases were stacked vertically (i.e. multiple purchases in one "cell" for each customer). If we didn't unnest_longer we would end up with multiple purchases on one row. Then, we could then unnest_wider to make the purchase attributes the columns of the data.
+
+We believe that leaving the hobbies in a list is the tidier way to structure this, since we're probably more concerned with viewing purchases as one single entry rather than having, for example, one purchase being repeated for separate hobbies.
+
+```{r task2_tidy}
+
+sales_tib = tibble(sales)
+
+cleaned_sales = sales_tib |> unnest_wider(sales) |> 
+  unnest_longer(purchases) |> 
+  unnest_wider(purchases) 
+
+df = as.data.frame(cleaned_sales)
+```
+
+```{r task2_top}
+# Print out the first 10 lines of your tidy data frame
+df[1:10,]
+```
+
+### Question 1
+
+```{=html}
+<!--
+1. What are the three most common first names of purchasers?
+-->
+```
+```{r task2_q1}
+df %>%
+  count(first_name, sort = TRUE) %>%
+  head(3)
+```
+
+### Question 2
+
+Star Wars made the most money, with code illustrating this using aggregate() below.
+
+```{r task2_q2}
+top_sales = aggregate(df$USPrice * df$Quantity, list(df$Theme),sum)
+top_sales[order(top_sales$x,decreasing=TRUE),][1,]
+```
+
+### Question 3
+
+Women buy more Lego sets.
+
+```{r task2_q3}
+total_quantity = df |> group_by(gender) |> dplyr::summarise(total_units = sum(Quantity))
+subset = df |> group_by(gender,first_name,last_name) |> dplyr::summarise(total_units = sum(Quantity))
+gendered = subset |> count(gender) |> group_by(gender) |> dplyr::summarise(total = sum(n))
+
+left_join(total_quantity, gendered) |> mutate(average = total_units/total)
+```
+
+### Question 4
+
+```{=html}
+<!--
+4. What are the five most popular hobbies of Lego purchasers?
+-->
+```
+```{r task2_q4}
+```
+
+### Question 5
+
+```{=html}
+<!--
+5. Which area code has spent the most money on Legos? (In the US the area code is the first 3 digits of a phone number)
+-->
+```
+```{r task2_q5}
+```

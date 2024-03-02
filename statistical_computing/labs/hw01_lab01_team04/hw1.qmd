@@ -1,0 +1,425 @@
+---
+title: "Homework 1"
+format: 
+  html:
+    self-contained: true
+author: 
+- teammate Will Tirone 
+- teammate Yunhong Bao 
+- teammate Yucan Zeng
+- teammate Xinyi Sheng
+---
+
+## Task 1 - Implement fizzbuzz
+
+### Write up
+
+This part of the program implements a classical programming interview question — FizzBuzz. FizzBuzz requires writing a program that given a vector of numbers as input and returns a new vector that contains the original values, but with multiples of three replaced by "Fizz", multiples of five replaced by "Buzz", and numbers which are multiples of both three and five replaced by "FizzBuzz". Further requirements for the program are as follow:
+
+\begin{enumerate}
+\item Function must be named fizzbuzz and take a single argument named input.
+\item Input must be a numeric vector (either double or integer type is allowed)
+\item Implementation must use a for loop
+\item If input is double type then all values must be coercible to integer without rounding or truncating (i.e. 5 or 5.0 are valid but 5.1 is not)
+\item All input values must be >=0
+\item All input values must be finite 
+\item An invalid input values should immediately result in an appropriate error
+\item The returned vector should always have a character type
+\item All error messages should be informative
+\end{enumerate}
+
+To tackle this problem, we began the program with an input evaluation section. The initial step is to certify that are user inputs are  numerical vectors. To achieve this, the R built in function is.numeric() is utilized. If is.numeric() returns FALSE, ie., the user input is non numeric (logic vector, list, raw, string, etc.), the program would stop excution and print out a error massage. After eliminating non-numeric entries, we further check for inputs including NaN or infinite values. This is achieved by applying 2 if statements with function is.nan() and is.infinite() as the logic statement, any() is also used to cover all entries in the input. With this combination, NaN and infinite inputs would raise an error message. Last but not least, the program evaluates if the input has a non-negative integer value. To check for integer value, we acquire the remainder of input vector divided by 1. Any non-zero remainder would indicate entry being non-integer and raise an error warning.
+
+After certifying valid inputs, the program starts to modify the input vector. There is a special case here — 0, since it is a multiple of 3, 5 and 15. We first pick out this case to specify that any 0 entries should remain unchanged. Then, we modify entries divisible by 15, 3 and 5 respectively. Else if statements are used here to avoid the redundancy of repetitive checking. Finally, we change the vector to type character and return the final vector.
+
+For the testing section, we first test out different combinations of acceptable entries. We tested vectors with numerical entries, single scalar entries, integer entries, double entries(coercible to interger without rounding). Finally, output type is confirmed to be character and coerced numerical entries are tested. All testing inputs provide correct results, indicating the function output is correct for valid inputs.
+
+### Function
+
+```{r fizzbuzz}
+fizzbuzz = function(input) {
+  # Check for non-numeric inputs including list, complex, NA
+  if (!is.numeric(input)){
+    stop("Input must be a numeric vector!")
+  }
+  
+  # Check for NaN
+  else if (any(is.nan(input))){
+    stop("Input must be a vector of finite positive integers!")
+  }
+  
+  # Check for negative inputs
+  else if (any(input < 0)){
+    stop("Input must be a vector of finite positive integers!")
+  }
+  
+  # Check for infinite inputs
+  else if (any(is.infinite(input))){
+    stop("Input must be a vector of finite positive integers!")
+  }
+  
+  # Check for non-integer inputs
+  else if (any(input %% 1 != 0)){
+    stop("Input must be a vector of integers!")
+  }
+  
+  # Subsitute for FizzBuzz
+  else{
+    for (i in seq_along(input)){
+      
+      # If entry is 0, do nothing 
+      if(input[i] == 0){
+        next
+      }
+      else if (as.numeric(input[i]) %% 15 == 0 ){
+        input[i] = "FizzBuzz"
+      }
+      else if (as.numeric(input[i]) %% 5 == 0 ){
+        input[i] = "Buzz"
+      }
+      else if (as.numeric(input[i]) %% 3 == 0 ){
+        input[i] = "Fizz"
+      }
+    }  
+    # Change output to type "character"
+    as.character(input)
+  }
+}
+```
+
+### Testing
+
+#### Valid Inputs
+
+```{r good_inputs, error = TRUE}
+
+# Testing single scalar entries
+stopifnot( fizzbuzz(0)  == "0"       )
+stopifnot( fizzbuzz(1)  == "1"       )
+stopifnot( fizzbuzz(3)  == "Fizz"    )
+stopifnot( fizzbuzz(5)  == "Buzz"    )
+stopifnot( fizzbuzz(15) == "FizzBuzz")
+
+# Testing numeric vector entries
+stopifnot(all( fizzbuzz(c(3,6,9,12,15)) == c("Fizz", "Fizz", "Fizz", "Fizz", "FizzBuzz") ))
+stopifnot(all( fizzbuzz(12:18) == c("Fizz", "13", "14", "FizzBuzz", "16", "17", "Fizz") ))
+stopifnot(all( fizzbuzz(1:5) == c("1", "2", "Fizz", "4", "Buzz") ))
+stopifnot(all( fizzbuzz(9:15) == c("Fizz", "Buzz", "11", "Fizz", "13", "14", "FizzBuzz") ))
+stopifnot(all( fizzbuzz(15:9) == c("FizzBuzz", "14", "13", "Fizz", "11", "Buzz", "Fizz") ))
+stopifnot(all( fizzbuzz(seq(2, 15, by = 3)) == c("2", "Buzz", "8", "11", "14"  ) ))
+stopifnot(all( fizzbuzz(seq(15, 2, by = -3)) == c("FizzBuzz", "Fizz", "Fizz", "Fizz", "Fizz"  ) ))
+
+#Testing integer type entries
+stopifnot(all( fizzbuzz(c(3L,5L)) == c("Fizz", "Buzz") ))
+stopifnot(all( fizzbuzz(c(1L,5L)) == c("1", "Buzz") ))
+stopifnot(all( fizzbuzz(1L:5L) == c("1", "2", "Fizz", "4", "Buzz") ))
+
+
+# Testing double type entries
+stopifnot(all( fizzbuzz(c(9.0,10.0,11,12,13,14,15)) == c("Fizz", "Buzz", "11", "Fizz", "13", "14", "FizzBuzz") ))
+stopifnot(all( fizzbuzz(c(9.0,10.0,11,12,13,14,15)) == c("Fizz", "Buzz", "11", "Fizz", "13", "14", "FizzBuzz") ))
+stopifnot(all( fizzbuzz(c(c(9.0,10.0),11,12,13,14,15)) == c("Fizz", "Buzz", "11", "Fizz", "13", "14", "FizzBuzz") ))
+
+
+# Testing output data type
+stopifnot(all( typeof(fizzbuzz(15:9)) == "character" ))
+stopifnot(all( typeof(fizzbuzz(9)) == "character" ))
+stopifnot(all( typeof(fizzbuzz(0:2)) == "character" ))
+stopifnot(all( typeof(fizzbuzz(15)) == "character" ))
+stopifnot(all( typeof(fizzbuzz(9:15)) == "character" ))
+stopifnot(all( typeof(fizzbuzz(5)) == "character" ))
+stopifnot(all( typeof(fizzbuzz(0)) == "character" ))
+
+# Testing numerical vector entries after coersion
+stopifnot(all( fizzbuzz(c(TRUE,1) ) == c("1" ,"1")))
+stopifnot(all( fizzbuzz(c(FALSE,1) ) == c("0" ,"1")))
+stopifnot(all( fizzbuzz(c(raw(2),1) ) == c("0", "0", "1")))
+stopifnot(all( fizzbuzz(c(raw(5),5) ) == c("0", "0", "0", "0", "0", "Buzz")))
+stopifnot(all( fizzbuzz(5 + FALSE) == c("Buzz")))
+stopifnot(all( fizzbuzz(5 / TRUE) == c("Buzz")))
+stopifnot(all( fizzbuzz(5 * TRUE) == c("Buzz")))
+stopifnot(all( fizzbuzz(5 - FALSE) == c("Buzz")))
+```
+
+
+#### Bad Inputs
+
+```{r throws_error}
+# Testing helper function, returns TRUE if expr throws an error FALSE otherwise.
+throws_error = function(expr) {
+  inherits(try(expr, silent = TRUE), "try-error")
+}
+```
+
+```{r bad_inputs, error = TRUE}
+
+# Testing non-vector entries
+stopifnot(throws_error( fizzbuzz(list(-1)) ))
+stopifnot(throws_error( fizzbuzz(list(1,TRUE)) ))
+
+# Testing negative entries
+stopifnot(throws_error( fizzbuzz(-1) ))
+stopifnot(throws_error( fizzbuzz(-3) ))
+stopifnot(throws_error( fizzbuzz(-5) ))
+
+# Testing entries containing NA
+stopifnot(throws_error( fizzbuzz(NA) ))
+stopifnot(throws_error( fizzbuzz(c(-5,NA)) ))
+stopifnot(throws_error( fizzbuzz(c(NA,0)) ))
+stopifnot(throws_error( fizzbuzz(c(-5,NA,0)) ))
+
+
+# Testing logic entries
+stopifnot(throws_error( fizzbuzz(TRUE) ))
+stopifnot(throws_error( fizzbuzz(FALSE) ))
+stopifnot(throws_error( fizzbuzz(c(TRUE,TRUE)) ))
+stopifnot(throws_error( fizzbuzz(c(FALSE,FALSE)) ))
+stopifnot(throws_error( fizzbuzz(c(TRUE,FALSE)) ))
+
+
+# Testing infinite entries and NaN
+stopifnot(throws_error( fizzbuzz(Inf) ))
+stopifnot(throws_error( fizzbuzz(-Inf) ))
+stopifnot(throws_error( fizzbuzz(NaN) ))
+stopifnot(throws_error( fizzbuzz(c(Inf,5)) ))
+stopifnot(throws_error( fizzbuzz(c(NaN,5)) ))
+stopifnot(throws_error( fizzbuzz(c(-Inf,NaN))))
+stopifnot(throws_error( fizzbuzz(c(Inf,NaN,5)) ))
+
+# Testing character entries
+stopifnot(throws_error( fizzbuzz("A") ))
+stopifnot(throws_error( fizzbuzz("Hello") ))
+stopifnot(throws_error( fizzbuzz(c("A",6,10)) ))
+stopifnot(throws_error( fizzbuzz(c("A","Hello")) ))
+stopifnot(throws_error( fizzbuzz(c("1","2")) ))
+stopifnot(throws_error( fizzbuzz(c("A","2",)) ))
+
+# Testing non-integer double
+stopifnot(throws_error( fizzbuzz(1.5) ))
+stopifnot(throws_error( fizzbuzz(c(2, 1.5)) ))
+stopifnot(throws_error( fizzbuzz(c(1.5, 2.0)) ))
+stopifnot(throws_error( fizzbuzz(c(2.2, 1.5)) ))
+stopifnot(throws_error( fizzbuzz(-1.5)))
+stopifnot(throws_error( fizzbuzz(c(2,-1.5))))
+stopifnot(throws_error( fizzbuzz(c(-2.0,-1.5))))
+stopifnot(throws_error( fizzbuzz(pi) ))
+stopifnot(throws_error( fizzbuzz(pi + 3L) ))
+
+# Testing imaginary entries
+stopifnot(throws_error( fizzbuzz(1i) ))
+stopifnot(throws_error( fizzbuzz(4i) ))
+stopifnot(throws_error( fizzbuzz(3+4i) ))
+stopifnot(throws_error( fizzbuzz(c(1,2+4i,2)) ))
+
+# Testing vectors containing negative elements
+stopifnot(throws_error( fizzbuzz(seq(-2, 15, by = 3)) ))
+stopifnot(throws_error( fizzbuzz(seq(-2, -15, by = 3)) ))
+stopifnot(throws_error( fizzbuzz(seq(-2, -15, by = -3)) ))
+
+# Testing row data types
+stopifnot(throws_error( fizzbuzz(charToRaw("H")) ))
+stopifnot(throws_error( fizzbuzz(c(charToRaw("B"), charToRaw("H"))) ))
+stopifnot(throws_error( fizzbuzz(raw(7)) ))
+stopifnot(throws_error( fizzbuzz(c(raw(7), charToRaw("C"))) ))
+```
+
+
+
+
+## Task 2 - Re-Implement fizzbuzz
+
+### Write up
+
+Your function must be named fizzbuzz and take a single argument named input.
+Input must be a numeric vector (either double or integer type is allowed)
+Your implementation must use a for loop
+If input is double type then all values must be coercible to integer without rounding or truncating (i.e. 5 or 5.0 are valid but 5.1 is not)
+All input values must be >=0
+All input values must be finite
+An invalid input values should immediately result in an appropriate error
+The returned vector should always have a character type (even if none of the input values are divisible by 3 or 5)
+
+### Function
+
+```{r fizzbuzz_s3}
+
+fizzbuzz_s3 = function(input) {
+  UseMethod("fizzbuzz_s3")
+}
+
+fizzbuzz_s3.default = function(input){
+  stop("Class ", class(input), " not supported, please input a numeric vector.")
+}
+
+fizzbuzz_s3.numeric = function(input){
+  
+  #everything below has class = "numeric"
+  
+  #Check for NaN
+  if (any(is.nan(input))){
+    stop("Input must be a vector of finite positive integers!")
+  }
+  
+  # Check for negative inputs
+  else if (any(input < 0)){
+    stop("Input must be a vector of finite positive integers!")
+  }
+  
+  # Check for infinite inputs
+  else if (any(is.infinite(input))){
+    stop("Input must be a vector of finite positive integers!")
+  }
+  
+  # Check for non-integer inputs
+  else if (any(input %% 1 != 0)){
+    stop("Input must be a vector of integers!")
+  
+  }
+  
+  # referenced this post: https://stackoverflow.com/questions/64186895/how-to-use-rs-s3-object-system-for-fizzbuzz
+  
+  output = input
+  output[input == 0] = 0
+  output[input %% 3 == 0 & input !=0] <- "Fizz"
+  output[input %% 5 == 0 & input !=0] <- "Buzz"
+  output[input %% 5 == 0 & input %% 3 == 0 & input !=0] <- "FizzBuzz"
+  as.character(output)
+  print(output)
+  
+  }
+
+
+
+```
+
+
+### Test3 - Testing
+
+
+#### Valid Inputs
+
+```{r good_inputs_s3, error = TRUE}
+
+# Testing single scalar entries
+stopifnot( fizzbuzz_s3(0)  == "0"       )
+stopifnot( fizzbuzz_s3(1)  == "1"       )
+stopifnot( fizzbuzz_s3(3)  == "Fizz"    )
+stopifnot( fizzbuzz_s3(5)  == "Buzz"    )
+stopifnot( fizzbuzz_s3(15) == "FizzBuzz")
+
+# Testing numeric vector entries
+stopifnot(all( fizzbuzz_s3(c(3,6,9,12,15)) == c("Fizz", "Fizz", "Fizz", "Fizz", "FizzBuzz") ))
+stopifnot(all( fizzbuzz_s3(12:18) == c("Fizz", "13", "14", "FizzBuzz", "16", "17", "Fizz") ))
+stopifnot(all( fizzbuzz_s3(1:5) == c("1", "2", "Fizz", "4", "Buzz") ))
+stopifnot(all( fizzbuzz_s3(9:15) == c("Fizz", "Buzz", "11", "Fizz", "13", "14", "FizzBuzz") ))
+stopifnot(all( fizzbuzz_s3(15:9) == c("FizzBuzz", "14", "13", "Fizz", "11", "Buzz", "Fizz") ))
+stopifnot(all( fizzbuzz_s3(seq(2, 15, by = 3)) == c("2", "Buzz", "8", "11", "14"  ) ))
+stopifnot(all( fizzbuzz_s3(seq(15, 2, by = -3)) == c("FizzBuzz", "Fizz", "Fizz", "Fizz", "Fizz"  ) ))
+
+#Testing integer type entries
+stopifnot(all( fizzbuzz_s3(c(3L,5L)) == c("Fizz", "Buzz") ))
+stopifnot(all( fizzbuzz_s3(c(1L,5L)) == c("1", "Buzz") ))
+stopifnot(all( fizzbuzz_s3(1L:5L) == c("1", "2", "Fizz", "4", "Buzz") ))
+
+
+# Testing double type entries
+stopifnot(all( fizzbuzz_s3(c(9.0,10.0,11,12,13,14,15)) == c("Fizz", "Buzz", "11", "Fizz", "13", "14", "FizzBuzz") ))
+stopifnot(all( fizzbuzz_s3(c(9.0,10.0,11,12,13,14,15)) == c("Fizz", "Buzz", "11", "Fizz", "13", "14", "FizzBuzz") ))
+stopifnot(all( fizzbuzz_s3(c(c(9.0,10.0),11,12,13,14,15)) == c("Fizz", "Buzz", "11", "Fizz", "13", "14", "FizzBuzz") ))
+
+
+# Testing output data type
+stopifnot(all( typeof(fizzbuzz_s3(15:9)) == "character" ))
+stopifnot(all( typeof(fizzbuzz_s3(9)) == "character" ))
+stopifnot(all( typeof(fizzbuzz_s3(0:2)) == "character" ))
+stopifnot(all( typeof(fizzbuzz_s3(15)) == "character" ))
+stopifnot(all( typeof(fizzbuzz_s3(9:15)) == "character" ))
+stopifnot(all( typeof(fizzbuzz_s3(5)) == "character" ))
+stopifnot(all( typeof(fizzbuzz_s3(0)) == "character" ))
+
+# Testing numerical vector entries after coersion
+stopifnot(all( fizzbuzz_s3(c(TRUE,1) ) == c("1" ,"1")))
+stopifnot(all( fizzbuzz_s3(c(FALSE,1) ) == c("0" ,"1")))
+stopifnot(all( fizzbuzz_s3(c(raw(2),1) ) == c("0", "0", "1")))
+stopifnot(all( fizzbuzz_s3(c(raw(5),5) ) == c("0", "0", "0", "0", "0", "Buzz")))
+stopifnot(all( fizzbuzz_s3(5 + FALSE) == c("Buzz")))
+stopifnot(all( fizzbuzz_s3(5 / TRUE) == c("Buzz")))
+stopifnot(all( fizzbuzz_s3(5 * TRUE) == c("Buzz")))
+stopifnot(all( fizzbuzz_s3(5 - FALSE) == c("Buzz")))
+```
+
+
+#### Bad Inputs
+
+```{r bad_inputs_s3, error = TRUE}
+
+# Testing non-vector entries
+stopifnot(throws_error( fizzbuzz_s3(list(-1)) ))
+stopifnot(throws_error( fizzbuzz_s3(list(1,TRUE)) ))
+
+# Testing negative entries
+stopifnot(throws_error( fizzbuzz_s3(-1) ))
+stopifnot(throws_error( fizzbuzz_s3(-3) ))
+stopifnot(throws_error( fizzbuzz_s3(-5) ))
+
+# Testing entries containing NA
+stopifnot(throws_error( fizzbuzz_s3(NA) ))
+stopifnot(throws_error( fizzbuzz_s3(c(-5,NA)) ))
+stopifnot(throws_error( fizzbuzz_s3(c(NA,0)) ))
+stopifnot(throws_error( fizzbuzz_s3(c(-5,NA,0)) ))
+
+
+# Testing logic entries
+stopifnot(throws_error( fizzbuzz_s3(TRUE) ))
+stopifnot(throws_error( fizzbuzz_s3(FALSE) ))
+stopifnot(throws_error( fizzbuzz_s3(c(TRUE,TRUE)) ))
+stopifnot(throws_error( fizzbuzz_s3(c(FALSE,FALSE)) ))
+stopifnot(throws_error( fizzbuzz_s3(c(TRUE,FALSE)) ))
+
+
+# Testing infinite entries and NaN
+stopifnot(throws_error( fizzbuzz_s3(Inf) ))
+stopifnot(throws_error( fizzbuzz_s3(-Inf) ))
+stopifnot(throws_error( fizzbuzz_s3(NaN) ))
+stopifnot(throws_error( fizzbuzz_s3(c(Inf,5)) ))
+stopifnot(throws_error( fizzbuzz_s3(c(NaN,5)) ))
+stopifnot(throws_error( fizzbuzz_s3(c(-Inf,NaN))))
+stopifnot(throws_error( fizzbuzz_s3(c(Inf,NaN,5)) ))
+
+# Testing character entries
+stopifnot(throws_error( fizzbuzz_s3("A") ))
+stopifnot(throws_error( fizzbuzz_s3("Hello") ))
+stopifnot(throws_error( fizzbuzz_s3(c("A",6,10)) ))
+stopifnot(throws_error( fizzbuzz_s3(c("A","Hello")) ))
+stopifnot(throws_error( fizzbuzz_s3(c("1","2")) ))
+stopifnot(throws_error( fizzbuzz_s3(c("A","2",)) ))
+
+# Testing non-integer double
+stopifnot(throws_error( fizzbuzz_s3(1.5) ))
+stopifnot(throws_error( fizzbuzz_s3(c(2, 1.5)) ))
+stopifnot(throws_error( fizzbuzz_s3(c(1.5, 2.0)) ))
+stopifnot(throws_error( fizzbuzz_s3(c(2.2, 1.5)) ))
+stopifnot(throws_error( fizzbuzz_s3(-1.5)))
+stopifnot(throws_error( fizzbuzz_s3(c(2,-1.5))))
+stopifnot(throws_error( fizzbuzz_s3(c(-2.0,-1.5))))
+stopifnot(throws_error( fizzbuzz_s3(pi) ))
+stopifnot(throws_error( fizzbuzz_s3(pi + 3L) ))
+
+# Testing imaginary entries
+stopifnot(throws_error( fizzbuzz_s3(1i) ))
+stopifnot(throws_error( fizzbuzz_s3(4i) ))
+stopifnot(throws_error( fizzbuzz_s3(3+4i) ))
+stopifnot(throws_error( fizzbuzz_s3(c(1,2+4i,2)) ))
+
+# Testing vectors containing negative elements
+stopifnot(throws_error( fizzbuzz_s3(seq(-2, 15, by = 3)) ))
+stopifnot(throws_error( fizzbuzz_s3(seq(-2, -15, by = 3)) ))
+stopifnot(throws_error( fizzbuzz_s3(seq(-2, -15, by = -3)) ))
+
+# Testing row data types
+stopifnot(throws_error( fizzbuzz_s3(charToRaw("H")) ))
+stopifnot(throws_error( fizzbuzz_s3(c(charToRaw("B"), charToRaw("H"))) ))
+stopifnot(throws_error( fizzbuzz_s3(raw(7)) ))
+stopifnot(throws_error( fizzbuzz_s3(c(raw(7), charToRaw("C"))) ))
+```
+

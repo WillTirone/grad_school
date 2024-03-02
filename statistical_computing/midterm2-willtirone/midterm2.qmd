@@ -1,0 +1,198 @@
+---
+title: "Sta 523 - Fall 2022 - Midterm 2"
+subtitle: "Due Friday, December 9th by 5:00 pm."
+author: William Tirone
+format: 
+  html:
+    self-contained: true
+---
+
+### Setup
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(httr)
+library(jsonlite)
+```
+
+------------------------------------------------------------------------
+
+### Task 1 - Understanding the NY Times Article Search API
+
+I used this chunk to print the URL:
+
+```{r}
+base = "https://api.nytimes.com/svc/search/v2/articlesearch.json?"
+begin_date = "20121006"
+end_date = "20121006"
+key = "7AHIplo8KhJz9CnzarEN6FwqCxGqBB3m"
+fq = 'document_type:("article") AND print_page:"1" AND print_section:"A"' 
+
+full = paste0(base,
+              'fq=', fq,
+              '&begin_date=',begin_date,
+              '&end_date=',end_date,
+              '&api-key=',key)
+
+full_url = URLencode(full)
+full_url
+```
+
+URL:
+
+    "https://api.nytimes.com/svc/search/v2/articlesearch.json?fq=document_type:(%22article%22)%20AND%20print_page:%221%22%20AND%20print_section:%22A%22&begin_date=20121006&end_date=20121006&api-key=7AHIplo8KhJz9CnzarEN6FwqCxGqBB3m"
+
+### Task 1 Write Up:
+
+I started by reading through the API documentation and trying a few test queries. It looked like setting the beginning and end date to the same date would return everything on a single day, so I did that with my birthday the first year I was enrolled in college (2012/10/06).
+
+I had some trouble figuring out the filter query parameter, but eventually discovered that in addition to chaining together with `AND` I needed to encode the spaces. For some reason I thought R or the API would automatically encode this, but eventually I passed my full URL string into `URLencode` and that did the trick. The fields below are not encoded, but they are encoded in the above URL.
+
+-   `begin_date=20121006`
+
+-   `end_date=20121006`
+
+-   `fq=document_type:("article") AND print_page ("1") AND print_section:("A")`
+
+### Task 2 - Getting data from the API
+
+```{r}
+
+
+get_nyt_articles = function(year, month, day, 
+                            api_key="7AHIplo8KhJz9CnzarEN6FwqCxGqBB3m") {
+  
+  # checking conditions for year, day, and month 
+  # for numeric values as well as valid ranges
+  stopifnot("The NYT was founded in 1851, make sure your year is 
+            between that year and the current year, and is a numeric variable" =
+              year >= 1851 && year <= 2022 && is.numeric(year))
+  stopifnot("That month doesn't exist! Make sure month is between 1 and 12" = 
+            (month >= 1 && month <= 12 && is.numeric(month)))
+  stopifnot("Make sure day is between 1 and 31 and is a double" =
+              (day >= 0 && day <=31 && is.numeric(day)))
+  
+  # specific date to query
+  # set end and begin date the same to just get that day
+  month = ifelse(month<10,paste0('0',month),month)
+  date = paste0(year,month,day)
+  
+  combined_string = paste0(
+     'https://api.nytimes.com/svc/search/v2/articlesearch.json?',
+     'fq=document_type:("article") AND print_page:"1" AND print_section:"A"',
+     '&begin_date=',date,
+     '&end_date=',date,
+     '&api-key=',api_key)
+  
+  # encoded URL to query NYT 
+  full_url = URLencode(combined_string)
+
+  # initial response object 
+  init_query = jsonlite::read_json(full_url)
+  
+  # api only handles 10 pages at a time, this will check if API result has more 
+  # than 10 articles, if pages = 0, will just return the first page, otherwise  
+  # we loop through from 0:pages. 
+  hits = init_query$response$meta$hits
+  pages = ifelse(hits <= 10, 0, round((hits / 10) -1))
+  
+  # blank df to append to 
+  output = data.frame()
+  
+  # default image to use if no image present in article 
+  default_image = 'nyt.png'
+  
+  if (hits != 0) {
+  # loop through total pages for API call 
+  # API only allows 10 calls a minute so sleep = 6 to avoid hitting limit 
+    for (i in seq(0,pages)){
+
+      # call API first 
+      sub_page = paste0(full_url,'&page=',i)
+      data = jsonlite::read_json(sub_page)$response
+      
+      # hot fix 
+      img_check = length(data$docs[[1]]$multimedia)
+      
+      tidy_content = tibble(content = data$docs)
+      
+      # unnest and hoist things out 
+      output = tidy_content |> 
+        unnest_wider(content) |> 
+        hoist(headline, title = 'main') |> 
+        hoist(byline, byline = 'byline') |> 
+        hoist(byline, author = 'original') |> 
+        unnest_wider(multimedia) |> 
+        unnest_wider(...1) |>   # don't love this line 
+        mutate(img_url = ifelse(is.na(url) | img_check==0,
+                                'nyt.png',
+                                paste0('https://static01.nyt.com/',url))) |> 
+        dplyr::select(title, author, web_url, lead_paragraph, source, img_url) 
+
+      # sleep to avoid hitting limit 
+      Sys.sleep(6)
+      
+    }
+  } else {
+    output = tibble()
+  }
+  
+  # return an empty tibble if no articles 
+  return(output)
+  
+}
+
+```
+
+```{r}
+# Show sample output for your function
+get_nyt_articles(2012,10,6)
+```
+
+### Task 2 Write Up:
+
+I started by checking various conditions to make sure the user was passing in valid values for the NYT API call. Since the query in the API accepted dates in the form `YYYYMMDD` it seemed simplest to make sure the user was inputting a numeric value (for all values) with `is.numeric()`, that the year was between 1851 and 2022, that the month was between 1 and 12, and that the day was between 1 and 31. Of course, a day like February 30th doesn't exist, but the prompt mentioned we didn't have to worry about this case. I chose the minimum year as the founding of the NYT - I doubt they have articles available from that time period, though if they retroactively add them at some point the function could access them.
+
+Next, I started combining string values to prepare the URL to make an API call. This first call checks how many pages of the API call we will need, since only 10 results are displayed at a time. I used this line of code `round((init_query$response$meta$hits / 10) - 1)` to check that - since the pages start at 0, if the number of articles is less than 10, this returns 0, and the loop runs once to pull the articles. If we have more than 10, this calculates the max number of pages we need to loop to. So, for example, if there are 145 articles, this returns 14, so we loop from page 0 to page 14 which would have 10 results per page except the last page which has 5.
+
+To check for edge cases, I tried a few dates. Recent dates (the past 10 years) seem to work every time and I haven't found any cases that fail. If there are no articles (for example 1970/10/30) the function outputs a blank tibble which will cause the Shiny app to print a message to choose a different date. Some dates have no data for multimedia, so I have a hack-y fix in place to check the length of multimedia and if the data is a blank list, to use the default NYT image. Each loop of article pages, the function sleeps for 6 seconds so we don't hit the limit of the call.
+
+I was originally looping through each iteration of the list that held the articles but rewrote that to use unnests and hoists. The only side effect is that the tibble prints "New names: -\> ...1" etc. on the terminal which looks like an [open issue](https://github.com/tidyverse/readxl/issues/580) on github, though I think it's because I'm unnesting the multimedia which has a lot of sub-lists. Since the app works and the image part was for bonus points anyway I'm leaving it as is, though that line could be improved with a hoist (I couldn't quite figure it out) and is quite slow because of the the `multimedia` column.
+
+## Task 3 - Shiny Front End
+
+### Task 3 Writeup:
+
+I started by adding input boxes in the UI for the Year, Month, and Day, along with a spot for the API key. I added a custom theme selector with `shinythemes::themeSelector()` and a NYT logo on the home page. Then, I added the API call to an `eventReactive()` so that it only calls the API when the button is clicked.
+
+I spent the majority of the time trying to figure out how to dynamically render the links, but I ended up adapting the supplied code to generate the links with the text of the titles such that it updates with each API call. Then, within the function that maps the links, I used a modal dialog popup that displays the title, byline, and leading paragraph along with a clickable link and an image from the article. Some articles have no images, so I have `get_nyt_articles()` using a statement to supply a default image if there isn't one present in the article. *(Note: you must right click and open the link to the NYT in a new tab)*
+
+If there are no articles present on the day selected, the function outputs a blank tibble and a `validate()` prints a message to select a different article. I've tried a wide variety of dates from past years in the 70s / 80s / present day and haven't found any cases that fail currently.
+
+Also, the app will crash if you choose dates outside of what the nyt function allows, though I have minimum values in the numeric input. It seems a little silly to add another validate statement to check inputs in the shiny app, and Dr. Rundel mentioned that the way `numericInput()` worked was a little strange. I would think this is more of an issue with `numericInput()` than with my app. 
+
+### Resources:
+
+1.  https://developer.nytimes.com/docs/articlesearch-product/1/overview
+
+2.  https://www.lucenetutorial.com/lucene-query-syntax.html
+
+3.  https://developer.nytimes.com/docs/articlesearch-product/1/routes/articlesearch.json/get
+
+4.  https://github.com/sta523-fa22/exercises/blob/main/class_2022_10_14.R
+
+5.  https://www.rdocumentation.org/packages/base/versions/3.6.2/topics/stopifnot
+
+6.  https://mastering-shiny.org/basic-app.html
+
+7.  https://shiny.rstudio.com/articles/action-buttons.html
+
+8.  https://shiny.rstudio.com/tutorial/written-tutorial
+
+9.  https://stackoverflow.com/questions/48154630/how-to-display-a-modal-dialog-if-users-click-a-link
+
+10. https://stackoverflow.com/questions/42047422/create-url-hyperlink-in-r-shiny
+
+11. https://shiny.rstudio.com/articles/images.html
+
+

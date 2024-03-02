@@ -1,0 +1,183 @@
+---
+title: "Homework 4 - La Quinta is Spanish for next to Denny's"
+format: 
+  html:
+    self-contained: true
+author:
+- Yunhong Bao
+- Xinyi Sheng
+- Jasprit Singh Aujla
+- Bei Yu
+- William Tirone
+---
+
+## Task 1 - Scraping Denny's
+
+To conduct distance analysis on Denny's and La Quinta locations, we scraped location data containing longitude and latitude from Denny's and La Quinta's websites. Task 1 includes scraping and storing location data from Denny's website, which was done in two steps: we scraped and downloaded the Denny's individual page websites as .html files, then extracted the geographical info.
+
+To scrape the URL for each Denny's store, website exploration is first conducted. First we saw that there were a maximum of 3 layers in the hierarchical website structure: State Website --- City Website --- Store Website. Furthermore, the command for scraping each layer is different, suggesting recursive functions might not be adequate. The only edge case was that the DC store website has a different hierarchical structure (only two layers). Then, we stored the URLs according to the store series number.
+
+With this information, we designed a scraping method. First, the program separates DC URL from URLs of other states. It then scrapes URLs for the two stores in DC. The program further scrapes the URL for each states. This is accomplished with two nested for loops. First, it inspects whether the state URLs end with numeric or letters, which indicates whether the URL is for a single store or a more broad geographical location. If the URL contains store information, the program appends this URL to the result list. Otherwise, it reads the HTML file contained in the URL and extracts URL for each city. For every city URL, it then repeat the same process: append the URL to result list or further extract store URL if there is more than 1 store in the selected city. Finally, the URLs for all stores are returned by combining the URL's of Denny's stores in DC. Then, a for loop is used to save all the .html file in the /data folder.
+
+Next, we constructed the file `parse_lq.R` to extract geographical information for each store. This is accomplished with a for loop. For each HTML file constructed in the last step, the program reads the file and selects the desired information with the `html_element`, `html_text`, and `html_attr` functions. Longitude, latitude, state, and city are selected for analysis. The selected data is then stored in a data frame, and the program saves this data frame in a .rds file at the desired location.
+
+## Task 2 - Scraping LQ
+
+In this task, we aimed to scrap the location information of La Quinta hotels within the United States. To complete this goal, we first utilized the `SelectorGadget` extension to get the general form of the CSS selection path for location contents on this website. After getting `.property a:nth-child(1)`, we filtered out these qualified elements and combined them with our base URL path in order to construct reasonable HTML addresses for scrapping.
+
+Since we are only interested in American hotels, we wish only to keep useful location URLs to complete further analysis. Here, the first thing we did is that we converted the 50 states' names stored in the base R package to make them the same forms as how they appeared in our collected URLs. Following, we extracted states' names, which is the first element in each path, in all of the URLs by detecting them with the `str_detect` function. With the information we gained through the previous two steps, we checked whether the URL's states' names were inside the generated list of 50 US states to filter out non-relevant addresses.
+
+We also want the precise locations of these hotels to appear as one of the columns in our final dataset, which is our criteria for final cleaning. Therefore, we obtained the first two elements in the `Loc` list and create a new column for further combining with the URLs we gathered before. Then we created a new file and stored our final download HTML web pages inside through a `for` loop.
+
+The final step is to get specific latitudes, longitudes, phone numbers, addresses, and hotel names from those download webpages. We first located all the demanded information through their CSS path, then cleaned the contents by removing meaningless notations. With a `for` loop running through these steps for all the URLs one by one, we generated our final data frame with all important information stored inside.
+
+## Task 3 - Distance Analysis
+
+```{r load_data}
+library(tidyverse)
+library(geosphere)
+library(sf)
+library(usmap)
+library(maptools)
+library(rgdal)
+dennys = readRDS("data/dennys.rds")
+lq = readRDS("data/lq.rds")
+```
+
+## Analysis
+
+We started by gathering the latitude and longitude collected from the scraping scripts. Then, after some minor cleaning and combining of the data, we used the `sf` package to plot the coordinates geographically the resemble the U.S., with colors for Denny's and La Quinta just to get a rough overview of the locations of each. Though this was before we removed the Hawai'i and Alaska observations.
+
+Next, to find the average distance from a Denny's to a La Quinta (and vice versa), we used `distm()` to calculate pairwise Haversine distances, which is necessary since the coordinates are on a globe (and thus Euclidean distance would not work, as mentioned in the GitHub instructions). Then, we found the closest location to each other, computed summary statistics, and created a few histograms to display the distribution of distances as well as the averages obtained earlier. (Note: the y-axis of the histograms is in percentage, but R is dropping the period between the zeros for some reason).
+
+Finally, we wanted to find out the number of Denny's that were next to a La Quinta and vice versa. We defined "next to" as being within a 5-minute walk. We chose 5-minutes as this is regarded as the amount of time that people were willing to walk before choosing to drive. Based on an average person's walking speed, this comes up to about 0.25 miles. We also found the number of unique states in which the closest La Quinta was within 0.25 miles of a Denny's and we plotted this using the package usmap in order to better visualize.
+
+```{r analysis}
+### Ensuring that R does not use the scientific e
+options("scipen"= 100, "digits"= 4)
+
+### Scatter plot of the locations (longitude -x , latitude - y) of both 
+### establishments, color by establishment type. bind_rows the two data sets and 
+### add an identifier variable for establishments
+
+colnames(lq)[colnames(lq) == "lattitude"] ="Latitude"
+colnames(lq)[colnames(lq) == "longtitude"] ="Longitude"
+
+lq$Latitude <- as.numeric(as.character(lq$Latitude))
+lq$Longitude <- as.numeric(as.character(lq$Longitude))
+
+combined <- bind_rows("Dennys" = dennys, "La Quinta" = lq, .id = 'Establishment')
+
+# Scatter plot as a map using the package sf
+# https://cran.r-project.org/web/packages/sf/index.html referenced this link 
+my_sf <- st_as_sf(combined, coords = c('Longitude', 'Latitude'))
+my_sf <- st_set_crs(my_sf, 4326)
+
+ggplot(my_sf) + 
+  geom_sf(aes(color = Establishment))
+
+# Get the matrix of distance in miles, input is pair of (longitude, latitude) 
+dis=distm(dennys[,3:4], lq[,c(5,4)], fun=distHaversine)/1609
+
+# For each Denny's, find the closest La Quinta
+dis_dennys=apply(dis, 1, FUN = min)
+dis_dennys <- as.data.frame(dis_dennys)
+
+# For each La Quinta, find the closest Denny's
+dis_lq=apply(dis, 2, FUN = min)
+dis_lq <- as.data.frame(dis_lq)
+
+# Arranging the distances from smallest to largest
+dis_dennys$dis_dennys <- dis_dennys$dis_dennys[order(dis_dennys$dis_dennys)]
+dis_lq$dis_lq <- dis_lq$dis_lq[order(dis_lq$dis_lq)]
+
+# Summary statistics
+summary(dis_dennys$dis_dennys)
+summary(dis_lq$dis_lq)
+
+## The summary statistics show that on average the nearest Denny's from a given
+## La Quinta is 13.72 miles while the nearest La Quinta from a given Denny's is 
+## 23.5 miles. 
+
+# Moreover, from the map above, we can infer that the minimum distances above 
+# 2000 miles are due to there being a few Denny's in Hawaii but no La Quinta's. 
+# Thus, for those Denny's the closest La Quinta is very far away. 
+
+# For Denny's omitting distances that are greater than 2000 miles for a
+# cleaner graph
+
+dis_dennys_sub2000 <- subset(dis_dennys, dis_dennys <= 2000)
+
+ggplot(dis_dennys_sub2000, aes(dis_dennys)) + geom_histogram(binwidth = 1,
+                                          col = "darkblue", fill="lightblue") +
+                                scale_y_continuous(labels=scales::percent) +
+                                    geom_vline(aes(xintercept=mean(dis_dennys)),
+                                    color="blue", linetype="dashed", size=1) + 
+  ggtitle("Plot of distance between each Denny's and closest La Quinta") +
+                                xlab("Distance (miles)") + ylab("Percent")  
+
+
+ggplot(dis_lq, aes(dis_lq)) + geom_histogram(binwidth = 1,
+                                          col = "orange", fill="yellow") +
+                                scale_y_continuous(labels=scales::percent) +
+                                    geom_vline(aes(xintercept=mean(dis_lq)),
+                                      color="red", linetype="dashed", size=1) + 
+                            ggtitle("Plot of distance between each 
+                                 La Quinta and closest Denny's") +
+                                xlab("Distance (miles)") + ylab("Percent") 
+
+
+### We define "next to" as something that can be reached to by walking in 5 mins 
+### (based on an average person's walking speed, 0.25 miles is how far they 
+### can walk in 5 minutes)
+
+dennys$dis_dennys_sub0.25 <- rowSums(dis < 0.25)
+dennys_walk <- data.frame(dennys[dennys$dis_dennys_sub0.25 >= 1, ])
+length(dennys_walk$dis_dennys_sub0.25)
+
+### There are 93 denny's that are within a 5-minute walk (0.25 miles) to the 
+### closest La Quinta
+
+lq$dis_lq_sub0.25 <- colSums(dis < 0.25)
+lq_walk <- data.frame(lq[lq$dis_lq_sub0.25 >= 1, ])
+length(lq_walk$dis_lq_sub0.25)
+
+### There are 94 La Quinta's that are within a 5-minute walk (0.25 miles) to the
+### closest Denny's
+
+### The number of unique states and cities where Denny's and La Quinta's are "next"
+### to each other
+
+states_dennys_walk <- unique(dennys_walk$State)
+length(states_dennys_walk)
+cities_dennys_walk <- unique(dennys_walk$City)
+length(cities_dennys_walk)
+
+### Therefore, Hedberg's claim is true in 23 states and 85 cities. 
+
+### Visualizing where these pairs of Denny's and La Quinta's which
+### are less than 0.25 miles apart are located
+
+transformed_data_dennys_walk <- usmap_transform(dennys_walk, 
+                                                c("Longitude", "Latitude"))
+transformed_data_lq_walk <- usmap_transform(lq_walk, c("Longitude", "Latitude"))
+
+plot_usmap(regions = "states") +
+  labs(title = "Denny's which are within 0.25 miles of a La Quinta") + 
+  geom_point(data = transformed_data_dennys_walk,
+       aes(x = x, y = y), color = "red", size = 1.5) +
+  theme(panel.background=element_blank()) 
+
+
+plot_usmap(regions = "states") +
+  labs(title = "La Quintas which are within 0.25 miles of a Denny's") +
+  geom_point(data = transformed_data_lq_walk,
+       aes(x = x, y = y), color = "blue", size = 1.5) +
+  theme(panel.background=element_blank()) 
+
+### The maps show that Hedberg's claim is only valid in certain parts of 
+### the US. 
+
+### Returning back to default
+options("scipen"=0, "digits"=7)
+```

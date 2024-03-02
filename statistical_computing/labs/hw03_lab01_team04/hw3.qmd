@@ -1,0 +1,147 @@
+# Homework 3 - Tidy Tuesday & TV's Golden Age
+
+```{r setup, message=FALSE}
+library(tidyverse)
+library(stringr)
+library(ggrepel)
+library(gganimate)
+tv = readr::read_csv("data/IMDb_Economist_tv_ratings.csv")
+```
+
+### Task 1 - Goals
+
+We started by plotting various values and adding dimensions using color and size to the plot as well as the x and y axes. On the first plot below, we noticed that some shows were significant outliers based on rating, share, and the number of seasons filmed (Note: the first plot is NOT our plot for task 2, it was just an EDA technique so we left it in).
+
+"The new season of my favorite show is so bad!" We always hear our friends complain about the decreasing quality of their favorite show. Are there any general correlation between average rating of a show and its specific season number? Does the rating of a show increase or decrease on average after more seasons are filmed? Can a show keep maintain its popularity across all seasons? How can these data inform investors and viewers decisions? Following these questions, we started our data exploration.
+
+Since we are interested in correlation of seasons and average show ratings, shows with only 1 season are filtered out. To achieve this, we group all the data by show title and count the number of seasons each show has. Then, we mutate the data to include a column of total seasons.
+
+```{r}
+group_tv = tv |> group_by(titleId) |> summarise(max_season = max(seasonNumber))
+max_season_tv = left_join(tv,group_tv)
+
+ggplot(max_season_tv,aes(x=share,y=av_rating,label=title)) + geom_point(aes(color=date,size=max_season)) + 
+  geom_text(aes(label=ifelse(share>20,as.character(title),'')),hjust=0,vjust=0)+
+  geom_text(aes(label=ifelse(av_rating<5,as.character(title),'')),hjust=0,vjust=0,angle=45)
+```
+
+### Task 2 - Visuals
+
+```{r}
+# Filter out shows with only 1 season.
+tv_year=tv %>%
+  mutate(
+    year=as.numeric(format(date,format="%Y"))
+  )%>%
+  group_by(year) %>%
+  group_by(title)
+tv_freq=tv_year %>%
+  count(title) %>%
+  filter(.,n>1)
+tv_join=left_join(
+  tv_freq,
+  tv_year,
+  by=c("title"="title")
+)
+```
+
+```{r}
+# Two shows are selected out to show the general trend and provide further analysis
+Breakingbad=tv_join %>%
+  filter(title=="Breaking Bad")
+AgentOfShield=tv_join %>%
+  filter(title=="Agents of S.H.I.E.L.D.")
+GameofThrones=tv_join %>%
+  filter(title=="Game of Thrones")
+Selected=tv_join %>%
+  filter(title=="Breaking Bad" | title == "Agents of S.H.I.E.L.D." | title == "Game of Thrones")
+```
+
+```{r,fig.align="center", echo = FALSE, warning=T}
+ggplot(data=tv_join,aes(x=seasonNumber,y=av_rating))+
+  geom_point(aes(size=share,color=year,alpha=share))+
+  xlim(1,11)+
+  ylim(6.5,9.7)+
+  scale_color_gradient(low="blue", high="red")+
+  geom_smooth()+
+  geom_line(data=Selected,aes(seasonNumber,av_rating, group=title),se=F,color="#CC00FF")+
+  gganimate::transition_reveal(Selected$seasonNumber)+
+  geom_text_repel(data = filter(Breakingbad,seasonNumber==5),
+                   box.padding=0,
+                   aes(label = title),
+                   nudge_x = 0,
+                   nudge_y = .3,
+                   alpha=0.7,
+                   size=2,
+                   na.rm = TRUE)+
+  geom_text_repel(data = filter(AgentOfShield,seasonNumber==5),
+                   box.padding=0,
+                   aes(label = title),
+                   nudge_x = .3,
+                   nudge_y = .3,
+                   alpha=0.7,
+                   size=2,
+                   na.rm = TRUE)+
+  geom_text_repel(data = filter(GameofThrones,seasonNumber==5),
+                   box.padding=0,
+                   aes(label = title),
+                   nudge_x = .3,
+                   nudge_y = .3,
+                   alpha=0.7,
+                   size=2,
+                   na.rm = TRUE)
+```
+
+### Task 3 - Designs
+
+We think it is helpful to have a plot that shows a general trend across all the data, as well as the specific trend of a few shows. We chose Agents of S.H.I.E.L.D., Breaking Bad, and Game of Thrones. AOS performed moderately well by rating, while Breaking Bad was very highly rates. Game of Thrones, notably, was incredibly popular for the first several seasons followed by one of the worst seasons in recent memory (at least, according to viewers).
+
+Generally speaking, we can see on the thick blue line that shows peak in ratings by about season 4 and drop off gradually from there onwards. Similar to the examples in class, we wanted to incorporate different dimensions in the plot with color, size, and animation. Steve added a great animation that shows the particular shows we selected over time (Note: this can be viewed in the "Viewer" in RStudio as a gif). This illuminates how difficult it is to maintain high ratings over time, which Breaking Bad managed to do.
+
+We can also see by comparison to our EDA plot that several shows in the early 90s had an enormous portion of share that we don't really see in the 2010s onward, probably reflecting the fewer options available to viewers in the early 90s.
+
+### Extra code chunks
+
+```{r}
+tv_year=tv %>%
+  mutate(
+    year=as.numeric(format(date,format="%Y"))
+  )%>%
+  group_by(year) %>%
+  group_by(title)
+tv_year
+tv_freq=tv_year %>%
+  count(title) %>%
+  filter(.,n>1)
+tv_freq
+tv_join=left_join(
+  tv_freq,
+  tv_year,
+  by=c("title"="title")
+)
+```
+
+```{r}
+ggplot(data=tv,aes(x=date,y=av_rating))+
+  geom_point(aes(size=share,color=seasonNumber,alpha=share))+
+  scale_color_gradient(low="blue", high="red")+
+  geom_smooth()+
+  ylim(6,10)
+```
+
+```{r}
+tv %>% separate(date, into = c('year','month','day'), sep = '-') %>% group_by(year) %>% summarise(avg = sum(av_rating * share / 100)) %>% ggplot(aes(x=year , y = avg)) + geom_point()
+```
+
+```{r}
+tv_freq_all=tv_year %>%
+  count(title)
+tv_freq_all
+tv_year
+tv_join_all=left_join(
+  tv_freq_all,
+  tv_year,
+  by=c("title"="title")
+)
+tv_join_all
+```

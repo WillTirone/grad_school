@@ -1,0 +1,225 @@
+---
+title: "Sta 523 - Fall 2022 - Midterm 1"
+subtitle: "Due Wednesday, October 19th by 5:00 pm."
+author: "William Tirone"
+format: 
+  html:
+    self-contained: true
+---
+
+### Data & Setup
+
+```{r message=FALSE}
+library(tidyverse)
+library(lubridate)
+library(leaflet)
+library(htmltools)
+library(leafpop)
+library(kableExtra)
+f1 = readRDS(file="data/f1.rds")
+```
+
+------------------------------------------------------------------------
+
+### Task 1 - Tidy the data
+
+### Write up
+
+My strategy was to manually view the data set, see where / how it could be unnested, then attempt to unnest and repeat the process until I got the results asked for. I did this in two steps, through an initial series of unnest_widers, then was able to transpose the data in "subset" and continue cleaning. Last, I hoisted out the variables needed for constructor and name of the driver. I tried to unnest as little as possible, but the data was so deeply nested that it was difficult to make sense of it until I had the majority of it unnested.
+
+Last, I concatenated the driver's names as a column and altered the data types as required by the instructions. Note that some "points" were floats and were rounded by converting to integer.
+
+#### Code
+
+```{r task1, warning=FALSE, message=FALSE}
+
+# referenced rectangling Tidyr post: https://tidyr.tidyverse.org/articles/rectangle.html 
+
+# doing cleaning in two steps because that was easiest to think about 
+f1_raw = tibble(f1) |>
+  unnest_wider(f1) |> 
+  unnest_wider(RaceTable) |>
+  unnest_wider(Races)
+
+# unnesting and hoisting as needed to pick data that I want 
+subset = as.data.frame(t(f1_raw[,seq(-1,-7,-1)])) |>
+  unnest_wider(V1) |> 
+  unnest_longer(Results) |> 
+  unnest_wider(Results) |> 
+  hoist(Driver, 
+        first_name = 'givenName',
+        last_name = 'familyName') |>
+  hoist(Constructor,
+         constructor = 'constructorId')
+  
+# adding name as single column
+subset$driver = paste(subset$first_name, "", subset$last_name)
+
+# selecting data per requirements 
+f1_tidy = subset |> 
+  select(raceName,
+         round,
+         date,
+         driver,
+         constructor,
+         positionText,
+         points)
+
+# referenced S.O. post here: https://stackoverflow.com/questions/2288485/how-to-convert-a-data-frame-column-to-numeric-type
+f1_tidy[, c(2,6,7)] <- sapply(f1_tidy[, c(2,6,7)], as.integer)
+f1_tidy$date = as.Date(f1_tidy$date)
+
+# printing head per requirements 
+head(f1_tidy,10)
+```
+
+------------------------------------------------------------------------
+
+### Task 2 - Drivers' Championship
+
+#### Write up
+
+The most interesting part about the code was using pivot_wider to get the data in the desired format. Then, it was just summing across the columns to find the points and sorting by those.
+
+Printing this was a challenge - I renamed / abbreviated the columns by removing all the lowercase letters and white space. However, some races shared the same capital letter abbreviations, so I manually changed these. A better approach might be importing data with the correct abbreviations used on Wikipedia, but I wanted to practice using regex. Last, I used Kable to make the data viewable in the HTML document.
+
+#### Code
+
+```{r task2, message=FALSE}
+
+# pulling out data we want and pivoting to get into the correct form on Wikipedia 
+champ = f1_tidy |> 
+  select(raceName,driver,points) |> 
+  pivot_wider(names_from = raceName, values_from = points)
+
+# summing accross columns 
+champ$points = apply(champ[,-1],1,sum)
+
+# ordering by points 
+# used code from here: https://www.r-bloggers.com/2010/02/r-sorting-a-data-frame-by-the-contents-of-a-column/
+champ = champ[order(-champ$points),]
+
+# renaming columns with regex to try to print neatly
+t = names(champ)
+short_n = str_replace_all(t[2:23],"[a-z]", "")
+short_n = gsub(" ", "", short_n)
+
+# manually changing some duplicate names 
+short_n[1] = "BahGBP"
+short_n[4] = "ESP"
+short_n[10] = "GBR"
+short_n[6] = "AzGP"
+
+# replacing with our shortened names 
+long_n = names(champ[2:23])
+champ = champ |> rename_at(long_n,  ~ short_n)
+
+kable(champ, "html") %>% kable_styling("striped") %>% scroll_box(width = "100%")
+```
+
+------------------------------------------------------------------------
+
+### Task 3 - Cumulative Constructors
+
+#### Write up
+
+This piece is fairly similar to the above, with the first step doing some reshaping and summing to get the data in the right format. For the cumulative sum, I realize the function cumsum() exists, though that seemed more like a row-wise operation than what I needed. My loop would obviously be a bad idea with high-dimensional data, but it works fine for the small number of variables here.
+
+Then, in the interest of print the data frame, I performed the same name changes I did previously, though because the first step re-ordered the columns in alphabetical order, I had to manually find the right indices and choose the names. At this point I realized this was a pretty bad approach, but since it is just for the sake of printing the data frame I left it in. Last, I used Kable to make it possible to sidescroll the data in HTML. I only learned about Kable towards the end of the project, so the name abbreviation may not have been necessary.
+
+#### Code
+
+```{r task3, message=FALSE}
+
+# getting data in the shape we want 
+sum_construct = f1_tidy |> select(raceName,constructor,points) |> 
+  group_by(raceName,constructor) |> summarise(points = sum(points)) |> 
+  pivot_wider(names_from = raceName, values_from = points)
+
+# column-wise cumulative sum 
+for (i in seq(3,23,1)){
+   sum_construct[i] = sum_construct[i] + sum_construct[i-1]  
+}
+
+# sorting by points 
+sum_construct = sum_construct[order(-sum_construct$`United States Grand Prix`),]
+
+# renaming columns with regex to try to print neatly
+t = names(sum_construct)
+short_n = str_replace_all(t[2:23],"[a-z]", "")
+short_n = gsub(" ", "", short_n)
+
+# manually changing some duplicate names 
+short_n[3] = "AzGP"
+short_n[4] = "BahGBP"
+short_n[6] = "GBR"
+short_n[20] = "ESP"
+
+# replacing with our shortened names 
+long_n = names(sum_construct[2:23])
+sum_construct = sum_construct |> rename_at(long_n,  ~ short_n)
+
+kable(sum_construct, "html") %>% kable_styling("striped") %>% scroll_box(width = "100%")
+```
+
+------------------------------------------------------------------------
+
+### Task 4 - Visualization
+
+#### Write up
+
+I started by making some very bizarre and unhelpful graphs, since it's quite difficult to represent something with several categorical levels for two different variables, like driver and constructor. I had the idea to find the latitude and longitude of the constructors, put them on a map, and then figure out how to add driver details. Below, you should be able to scroll around the map, find the team's headquarters (with lat and long that I got from google and put into a csv), click on their bubble, and see the drivers and points for the season. Now, you can compare the constructors by bubble size, the drivers by clicking on the bubbles, and geographically see if geography has anything to do with how well a team performs. I thought it was interesting that so many of them were grouped so closely together in England.
+
+The bubbles are sized by radius, and had to be scaled down by 1/5 so the largest teams didn't cover the others. The colors for the teams were hex codes for their primary colors I found on google as well.
+
+The most difficult part was trying to get actual data to show up when the bubbles are clicked on - I could get a single driver and their points to show up, but to get around the issue I did some reshaping to get the drivers and points into lists. This looks somewhat messy, but based on the end goal I think all the steps were necessary. Then, when you click on a bubble, you should be able to see the drivers and their respective points by position. This was not a perfect solution but I thought it was still pretty good. The package, leafpop, is fairly new, so there wasn't much documentation on how it determined what "row" to display in the data, so I manipulated everything into one row per constructor.
+
+#### Code
+
+------------------------------------------------------------------------
+
+```{r message=FALSE}
+
+# getting all of the data together to put in the plot above 
+drivers = unique(f1_tidy[,c('driver','constructor','points')]) |> 
+  group_by(driver,constructor) |> 
+  summarise(points = sum(points))
+
+# reading in location data that I made by hand
+coords = read.csv('data/f1location - Sheet1.csv')
+all = left_join(coords,drivers)
+
+# here, creating a vector of data as a single cell to display in the plot
+display_data = all[,c("constructor","driver","points")]
+dat2 = aggregate(driver~constructor,display_data,paste,collapse=',')
+dat3 = aggregate(as.character(points) ~ constructor,display_data,paste,collapse=',')
+
+# a merge to get the aggregated data into one dataframe 
+merged = merge(dat2,dat3,"constructor")
+total_merged = merge(coords,merged)
+colnames(total_merged)[6] = 'points'
+
+# need sums for the constructors now
+construct_sum = all |> 
+  group_by(constructor) |> 
+  summarise(constructor_points = sum(points))
+
+# last, putting the whole thing together
+total_merged = merge(total_merged,construct_sum)
+
+# used this: https://rstudio.github.io/leaflet/popups.html
+# and this: https://github.com/r-spatial/leafpop
+# to make the plot below
+
+m = leaflet(total_merged) 
+m |> addTiles() |> addCircleMarkers(radius = ~constructor_points * 0.2, 
+                                    color=~color, 
+                                    fill = TRUE, 
+                                    fillOpacity = 1,
+                                    popup=popupTable(total_merged,
+                                                     zcol = c("constructor",
+                                                              "driver",
+                                                              "points"),
+                                                     feature.id=FALSE,
+                                                     row.numbers=FALSE))
+```

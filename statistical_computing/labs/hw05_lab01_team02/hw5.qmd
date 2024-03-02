@@ -1,0 +1,331 @@
+---
+title: "Homework 5 - Building a Shiny Dashboard"
+format: html
+author:
+- Tirone, William
+- Lin, Huiying
+- Yang, Yanjiao
+- Zhou, Xingzhi
+execute: 
+  echo: true
+server: shiny
+---
+
+## Task 1
+
+We start by connecting to the database and pulling the minimal amount of data we need to pre-compute and populate the UI with things like class and course number. This allows us to choose both a department with an "All" option, and then proceed to select a course number under the department.
+
+Then, the `gettable` function dynamically queries the db based on user input, pivots the data into a tidy format, and fills in NA values. In the UI itself, we created a side panel and conditional panel to display the options, and input boxes to calculate final grades if the user wants to.
+
+## Task 2
+
+To dynamically calculate the assignments, we use the getassignment function to dynamically calculate the assignments and total points for a given class when the user selects it. We added a check box in a conditional panel to to conditionally display the input boxes if the box is checked as well. We have checks to ensure that the weights sum to 1 and that they must be 0\< weight \<1 for any given weight. The `FinalGrade` column populates if the user clicks the box which is fed into an if statement in the last output step `output$score_table` to render as the data table.
+
+The grades are computed with the `final_grade` function which takes the data matrix (grade book for a given class) as input, extracts the assignments, then for each individual calculates their final grade based on the number of assignments, types of assignments, and inputted weights.
+
+Last, we added a plot that will populate with final grades if the user decides to calculate them.
+
+## Task 3
+
+First, we initialize a `corrections.sqlite` table that will hold score updates for students. In the server itself, we have a modal dialogue button that generates a corrections form where the user selects a student from the currently selected class, selects an assignment for the student, and enters a corrected grade.
+
+Then, with an `observeEvent` based on the submit input from the modal dialogue, we either delete the correction from the corrections table or append a new row with the input. To combine `corrections.sqlite` and `gradebook.sqlite`, we full join them then select the "corrected" version of the score to display only if it exists, otherwise we just display the grade from `gradebook.sqlite.` Last, we display the corrected scores merged into the overall `gradebook.` These steps avoid overwriting the entire table to re-render it, and just uses the minimal amount of new data.
+
+References for task 3:
+
+1.  https://stackoverflow.com/questions/58595096/editing-multiple-cells-in-a-datatable-in-shiny
+
+2.  https://shiny.rstudio.com/reference/shiny/latest/modalDialog.html
+
+3.  https://stackoverflow.com/questions/61054628/r-shiny-link-to-fluidpage-similar-to-modal-window
+
+## Shiny App
+
+```{r set up, message=FALSE}
+#| context: setup
+#| message: false
+
+library(tidyverse)
+library(shiny)
+library(RSQLite)
+library(dplyr)
+library(DT)
+
+
+# connect to db
+db = DBI::dbConnect(RSQLite::SQLite(), 
+                    "data/gradebook.sqlite", 
+                    synchronous = NULL)
+
+# get distinct class list 
+classes <- dplyr::tbl(db,"gradebook") %>%
+  as_tibble() %>%
+  distinct(class) %>%
+  pull() %>%
+  sort()
+
+
+# below chunk is to get department and class names 
+# into data structures to use them later 
+dept_names <- unique(str_extract(classes, "(\\w+)"))
+class_list <- list(classes)
+for (i in 1:length(dept_names)){
+  class_list <- c(class_list,
+                  list(classes[str_detect(classes,
+                                          dept_names[i])]))}
+names(class_list) <- c("All",dept_names)
+
+
+# A function to get the table based on user input 
+# of course number, then pivot wider to display in tidy format 
+gettable <- function(course_num){
+  
+  table <- dbGetQuery(db,paste0("select * 
+                                from gradebook 
+                                where class like '%",course_num,"%'")) %>%
+    as_tibble() %>% 
+    pivot_wider(id_cols = student,
+                names_from = assignment,
+                names_sort = TRUE,
+                values_from = points) %>%
+    as.data.frame() 
+  
+  table[is.na(table)] = "NA"
+  
+  return(table)
+}
+
+getnewtable=function(course_num){
+  new_score_tbl = 
+    dplyr::tbl(db, "gradebook") %>%
+      full_join(dplyr::tbl(cor, "corrections"), 
+                by = c("class", "student", "assignment"), copy=TRUE) %>%
+      mutate(new_score = ifelse(is.na(points.y), points.x, points.y)) %>%
+      select(class, student, assignment, new_score) %>%
+      collect() %>%
+      filter(class == course_num) %>%
+      pivot_wider(id_cols = c(class, student),
+                  names_from = assignment,
+                  names_sort = TRUE,
+                  values_from = new_score) %>%
+    as.data.frame() 
+  new_score_tbl[is.na(new_score_tbl)] = "NA"
+  return(new_score_tbl)
+  
+}
+
+getassignment <- function(course_num){
+  table = dbGetQuery(db, paste0(
+    "select distinct class, assignment, total_pts 
+          from assignments
+          where class like '%", course_num, "%'")) %>%
+  as_tibble()
+  
+  return (table)
+}
+# connect to cor
+cor <- DBI::dbConnect(
+  RSQLite::SQLite(),
+  "data/corrections.sqlite"
+)
+
+# create corrections if not exists
+if ( !("corrections" %in% dbListTables(cor)) ){
+  dbCreateTable(cor, "corrections", 
+                data.frame(
+                  class = character(),
+                  student = character(),
+                  assignment = character(),
+                  points = numeric()
+                  )
+                )
+}
+```
+
+```{r ui}
+ui = fluidPage(
+  title = "Gradebook",
+  
+  titlePanel("Gradebook"),
+  
+  sidebarLayout(
+    sidebarPanel = sidebarPanel(
+      
+      selectInput(inputId = "dept", 
+                  label = "Choose a department", 
+                  choice = names(class_list), 
+                  selected = "All"),
+      
+      selectInput(inputId = "course_num",
+                  label = "Choose a course number",
+                  choice = class_list$All),
+      
+      checkboxInput('final_grade', "Final Grad Calculation", FALSE),
+      
+      conditionalPanel(
+        "input.final_grade == true",
+        uiOutput("weights")),
+      
+      actionButton(inputId = "go", label = "Go"),
+      actionButton(inputId = "show", label = "Update")
+    ),
+    mainPanel = mainPanel(
+      tags$style(HTML('.modal-lg {width: 99%;}')),
+      #DT::dataTableOutput("score_table"),
+      #plotOutput("plot")
+      DT::dataTableOutput("new_score_table")
+ 
+  )
+)
+)
+```
+
+```{r server}
+#| context: server
+server = function(input, output, session) {
+  observe(
+    updateSelectInput(
+      session = session,
+      inputId = "course_num",
+      label = paste0("Choose a course number under ",
+                     input$dept, " department"),
+      choices = class_list[input$dept],
+      selected = class_list[input$dept][1])
+    )
+  
+  # get the score table
+  score_tbl <- eventReactive(input$go, {gettable(input$course_num)})
+  
+  # get the assignments of selected course from the `assignments` table
+  assignments <- reactive({getassignment(input$course_num)})
+  
+  # get dynamic types of assignments of selected course
+  weight_list <- reactive({
+    req(input$course_num)
+    unique(str_extract(assignments()$assignment, "[aZ-zZ]+"))
+    })
+  
+  # display weights using renderUI
+  output$weights <- renderUI({
+    lapply(1:length(weight_list()),
+           function(i){numericInput(paste0("weight", i), 
+                                    paste("Weight of", weight_list()[i]),
+                                       min=0, max=1, value = 0)})
+    })
+  
+  # get values of weights
+  getweights = eventReactive(input$go,
+                           lapply(1:length(weight_list()),
+                                  function(i){input[[paste0("weight",i)]]}))
+  
+  # compute the final grade
+  final_grade <- function(X){
+    
+    all_assignments = colnames(X)[-1] # record the name of each assignment 
+    
+    # calculate the total points of each type of assignments
+    total = assignments() %>%
+      mutate(types=str_extract(.$assignment, "[aZ-zZ]+")) %>%
+      group_by(types) %>%
+      summarise(total=sum(total_pts)) 
+    
+    # get the final grade for each student 
+    get_personal_final <- function(x){
+      cum = 0
+      
+      for (i in 1:length(weight_list())){
+        weight = getweights()[[i]]
+        
+        for (type in total$types){
+            if (type == weight_list()[i]){
+              prop = weight/total[total$types==type, ]$total
+              idx = which(str_detect(all_assignments, type))
+              cum=cum+sum(as.numeric(gsub("NA","0", x)[idx+1]))*prop
+            }
+        }
+      }
+      return(round(sum(cum),3))
+    }
+    
+    return (apply(X, 1, get_personal_final))
+  }
+  
+  # display modal dialogue if clicking the "Modal" button 
+  observeEvent(input$show, {
+    showModal(modalDialog(
+      title = paste("Course:", input$course_num),
+      size = "l",
+      selectInput("student", "Student Name", score_tbl() %>% select(student)),
+      selectInput("assignment", "Assignment", assignments() %>% select(assignment)),
+      numericInput("new_point", "Please enter the score", value=numeric(), min=0),
+      actionButton("submit", "Submit the change")
+      )
+    )}
+  )
+  
+  # change corrections
+  observeEvent(input$submit, {
+    # if the grade is already in corrections, delete it
+    dbExecute(cor, 
+              sprintf("delete from corrections where class = '%s' and student = '%s' and assignment = '%s'", 
+                     input$course_num, input$student, input$assignment)
+              )
+    # add new data to corrections
+    dbExecute(cor, 
+              sprintf("insert into corrections (class, student, assignment, points)
+                     values ('%s', '%s', '%s', '%f')", 
+                     input$course_num, input$student, input$assignment, input$new_point)
+              )
+  })
+  
+  # merge gradebook and corrections and extract from the database
+  new_score_tbl = eventReactive(input$go,{
+    getnewtable(input$course_num)
+  })
+  
+  observe({
+    updateNumericInput(
+      session = session,
+      inputId = "new_point",
+      value = new_score_tbl() %>%
+        filter(student == input$student) %>%
+        select(input$assignment) %>%
+        as.numeric()
+      )
+   }) %>%
+    bindEvent(c(input$student, input$assignment))
+  
+  ## output the table: 
+  observe({
+    output$new_score_table = renderDataTable(
+      if(isolate(input$final_grade)){
+        # decide whether the weights are invalid
+         validate(need(all(sapply(getweights(),function(x) x<=1 & x>=0)),
+                       "Warning: Weights should between 0 and 1!"))
+         validate(need(sum(unlist(getweights()))==1,
+                       "Warning: Weights should sum to 1!"))
+         # if weights are valid, output the table
+         new_score_tbl()  %>%
+          mutate(FinalGrade=final_grade(.)) %>%
+          datatable(editable=TRUE) %>%
+          formatStyle(names(new_score_tbl()),color = styleEqual("NA","red"))
+      }
+      else{
+         new_score_tbl()  %>%
+           datatable(editable=TRUE) %>%
+           formatStyle(names(new_score_tbl()),color = styleEqual("NA","red"))
+       }
+        
+      
+    )
+  }) %>%
+    bindEvent(input$go)
+  
+ }
+
+```
+
+```{r ref.label="server", eval=FALSE}
+# Included so server code is shown in document - do not modify or remove
+shinyApp(ui,server)
+```
