@@ -28,6 +28,8 @@ A course that combined frequentist and Bayesian approaches to building hierarchi
 
 A class on the statistical and probabilistic underpinnings of machine learning. 
 
+1. [Our final project](https://github.com/WillTirone/STA561/tree/main/project), applying machine learning methods to predict fish biomass levels.
+
 ## [Statistical Computing](https://github.com/WillTirone/grad_school/tree/main/statistical_computing) 
 
 A course in R.
