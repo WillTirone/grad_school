@@ -1,0 +1,347 @@
+---
+title: "HW1"
+format: pdf
+editor: visual
+---
+
+```{r}
+library(ggplot2)
+library(ggrepel)
+```
+
+# 1 True or false
+
+Examine whether the following statements are true or false and provide one line justification.
+
+\(a\) The data collection process usually has little-to-no influence on the outcome of a predictive modeling problem.
+
+**FALSE.** It has a huge influence. If you wanted to estimate the number of voters supporting Democrats in the next election and only sampled people at a Republican convention, you wolambdauld have very unreliable results.
+
+\(b\) Eigenvalues obtained from principal component analysis are always non-negative.
+
+**TRUE.** From the lecture, since we're performing the eigendecomposition on the sample covariance matrix, and the eigenvalues of that represent the variance of the components.
+
+\(c\) The first principal vector and the second principal vector are always orthogonal.
+
+**TRUE**. Since we want the second principal vector to be uncorrelated with the first, we make them orthogonal. (source: p. 501 ISL)
+
+\(d\) The singular values of a square matrix M are the same as the eigenvalues of M.
+
+**FALSE.** They are the square roots of the non-zero eigenvalues of $M^TM$ or $MM^T$. (Source: textbook and question #2 of this homework).
+
+\(e\) Principal component analysis can be used to create a low dimensional projection of the data.
+
+**TRUE.** It projects the data onto the space spanned by the principal component loading vectors $\phi_1,\phi_2...$
+
+\(f\) Eigenvalues of a matrix are always non-negative.
+
+**FALSE.** Counterexample below:
+
+```{r}
+A = matrix(-1,2,2)
+eigen(A)
+```
+
+\(g\) After applying K-means, the vectors representing the first cluster center and the second
+
+**FALSE.** Per the algorithm for k-means on p. 519 of ISL, there is no step that implies or requires orthogonality because the centroids are chosen randomly.
+
+# 2 SVD
+
+**(a) Show that...**
+
+$$
+\begin{aligned}
+M = UDV^T = UD
+\begin{bmatrix} 
+-v_1^T- \\ 
+\vdots \\ 
+-v_n^T -
+\end{bmatrix}
+= U
+\begin{bmatrix} 
+-d_1 v_1^T- \\ 
+\vdots \\ 
+-d_n v_n^T-
+\end{bmatrix} 
+\\
+\begin{bmatrix}
+u_1 u_2 \ldots u_n
+\end{bmatrix}
+\begin{bmatrix} 
+-d_1 v_1^T- \\ 
+\vdots \\ 
+-d_n v_n^T-
+\end{bmatrix} 
+= 
+\text{using column x row multiplication}
+= \sum_{i=1}^{n} u_i d_i v_i^T
+\end{aligned}
+$$
+
+**(b) For** $1 ≤ i ≤ n$**, show that..**
+
+$$
+\begin{aligned}
+& M = UDV^T \\
+& M^TM = (UDV^T)^T(UDV^T) \\
+& M^TM = VDU^TUDV^T = VD^2V^T 
+\end{aligned}
+$$
+
+Above, since D is diagonal $D^T = D$ and since U is orthogonal, $U^TU = I$ . Then, this is equivalent to the eigendecomposition of $M^TM$ so each column of $V$ corresponds to the $i^{th}$ eigenvalue and each entry of $D^2$ is the squared $i^{th}$ singular value, which is just the eigenvalue corresponding to the eigenvector.
+
+$$
+\begin{aligned}
+& M = UDV^T \\ 
+& MM^T = UDV^T(UDV^T)^T \\
+& MM^T = UDV^TVDU^T = UD^2U^T
+\end{aligned}
+$$
+
+The reasoning here is exactly the same as above. However, $MM^T$ will be an m x m matrix as opposed to $M^TM$ which will be n x n. Though I'm not clear if there are consequences or issues with this.
+
+**(c) Generate a random matrix M of size n×n for n...**
+
+```{r}
+sizes = c(2,4,6,8,16,32,64,128,256,512,1024,2048)
+creation_time = c()
+svd_time = c()
+
+# used resource here for computing time differences: https://www.geeksforgeeks.org/how-to-subtract-time-in-r/
+
+for (i in sizes) {
+  
+  start_time <- Sys.time()
+  M = matrix(data=1,nrow=i,ncol=i)
+  end_time <- Sys.time()
+  
+  start_svd <- Sys.time()
+  svd(M)
+  end_svd <- Sys.time()
+  
+  creation_diff = as.double(difftime(end_time,start_time,Sys.time()))
+  creation_time = append(creation_time,creation_diff) # bad practice to loop like this? 
+  
+  svd_diff = as.double(difftime(end_svd,start_svd,Sys.time()))
+  svd_time = append(svd_time,svd_diff) 
+  
+}
+
+plot(sizes,creation_time,main="matrix of size n x n vs. time to create (in seconds)")
+plot(sizes,svd_time, main="matrix of size n x n vs. time to perform svd (in seconds)")
+```
+
+# 3 Power Method
+
+## 3.1
+
+Below is the implementation. This works correctly compared to the eigen function.
+
+```{r}
+test = matrix(c(1,2,3,2,-1,4,3,4,-5), nrow=3, ncol = 3, byrow = TRUE)
+
+power <- function(A,iterations=15) {
+
+  # arbitrary starting vector 
+  wk = matrix(A[,1])
+  
+  for (i in seq(1,iterations))
+  {
+    wk_1 = A %*% wk
+  
+    s_k1 = wk_1[which.max(abs(wk_1))]
+  
+    wk = wk_1/s_k1
+  
+  }
+  
+  vector = wk / norm(wk,'2')
+  value = s_k1
+
+  output = list(vector, value)
+  names(output) = c("Eigenvector","Eigenvalue")
+  output
+  
+}
+
+power(test) 
+```
+
+```{r}
+eigen(test)
+```
+
+## 3.2
+
+```{r}
+B = matrix(c(5,1,0,1,4,0,0,0,1), nrow=3, ncol = 3, byrow = TRUE)
+eigen(B)
+```
+
+Deflating matrix:
+
+This works up to the third iteration, at which point it doesn't match the eigen function. I'm not entirely sure why.
+
+```{r}
+
+#power method on B
+result_B = power(B)
+
+B_1 = B - (result_B$Eigenvalue * (result_B$Eigenvector %*% t(result_B$Eigenvector)))
+
+# power method on B1
+result_B_1 = power(B_1)
+
+B_2 = B_1 - (result_B_1$Eigenvalue * (result_B_1$Eigenvector %*% t(result_B_1$Eigenvector)))
+
+# power method on B2
+result_B_2 = power(B_2)
+
+eigen_approximation = list(result_B,result_B_1,result_B_2)
+names(eigen_approximation) = c("first eigval / vec pair","second eigval / vec pair","third eigval / vec pair")
+eigen_approximation
+```
+
+# 4 PCA
+
+**(a) Use apply() function to compute mean and variance of all the four columns**
+
+```{r}
+apply(USArrests, MARGIN=2, FUN=mean)
+```
+
+```{r}
+apply(USArrests, MARGIN=2, FUN=var)
+```
+
+**(b) Plot a histogram for each of the four columns**
+
+```{r}
+hist(USArrests$Murder)
+hist(USArrests$Assault)
+hist(USArrests$UrbanPop)
+hist(USArrests$Rape)
+```
+
+**(c) Do you see any correlations between the four columns? Plot and comment.**
+
+It looks like murder and rape are right skewed and urban pop and assault are somewhat normally distributed, though assault looks more bi-modal.
+
+After looking at the plots below it looks like there's some light correlation. I'm not sure if I should iterate and compare the other columns with each other, I imagine that's the point of PCA as that would be tedious for a data set with more than a few columns.
+
+```{r}
+ggplot(USArrests, aes(x=Murder,y=Rape)) + geom_point() 
+ggplot(USArrests, aes(x=UrbanPop,y=Assault)) + geom_point() 
+```
+
+**(d) Use prcomp() function to perform principal component analysis. Make sure you standardized the data matrix. Print a summary at the end.**
+
+```{r}
+
+pca_model = prcomp(USArrests,scale = TRUE)
+
+#summary 
+#loadings = pca_model$rotation
+#scores= pca_model$sccores 
+summary(pca_model) 
+```
+
+```{r}
+# just printing another view of the model here 
+pca_model
+```
+
+**(e) Obtain the principal vectors and store them in a matrix, include row and column names. Display the first three loadings.**
+
+negative PC1: state with a lot of murders moves to left of PC1. Higher values of variable associated with lower values of first PC.
+
+PC2: states with higher murders / assaults will be in top part of biplot.
+
+```{r}
+
+# each column below contains the loading vectors 
+# each entry is a loading 
+
+
+loading_matrix = pca_model$rotation 
+cat("Confirming that this is a matrix: ", class(loading_matrix),"\n")
+loading_matrix[1:4,1:3]
+```
+
+**(f) Obtain the principal components (or scores) and store them in a matrix, include row and column names. Display the first three PCs.**
+
+```{r}
+# These points are projectings onto space spanned by loadings? 
+# Is there a projection matrix or? (V matrix, if you keep first two columns of V)
+scores = pca_model$x 
+scores = scores[1:3,1:3]
+scores
+```
+
+**(g) Obtain the eigenvalues and store them in a vector. Display the entire vector, and compute their sum.**
+
+```{r}
+eigvals = c(pca_model$sdev**2)
+eigvals
+sum(eigvals)
+```
+
+**(h) Create a scree-plot (with axis labels) of the eigenvalues. What do you see? How do you read/interpret this chart?**
+
+This will help us understand how many principal components to retain based on whether or not there is an elbow present. Based on some of the criticism we discussed in class, it's hard to tell where the elbow is - you could choose either 2 or 3 principal components probably based on what we see below.
+
+```{r}
+plot(c(1,2,3,4),eigvals,type="l",xlab="principal component number")
+```
+
+**(i) Create a scatter plot based on the 1st and 2nd PCs. Which state stands out? Provide some explanations. In this plot you should annotate the points with state names.**
+
+California stands out significantly - explanations are a bit challenging here because the data is so scattered, it doesn't look like there's anything obvious that relates the states to one another. In a sense, this could maybe tell us that if we were trying to group the different states we would want some additional variables and measurements.
+
+```{r}
+data = data.frame(x=pca_model$x[,1],
+           y=pca_model$x[,2],
+           z=pca_model$x[,0])
+plot(data$x,data$y,xlab = "PC1", ylab="PC2")
+text(data$x,data$y,row.names(data))
+```
+
+(Below not really part of the above question but I wanted to see it displayed. Note for myself: the direction of the vector for murder below represents the first loading in PC1 and first loading in PC2 for Murder.)
+
+```{r}
+biplot(pca_model)
+```
+
+**(j) Create the same scatter plot but color the states according to the variable UrbanPop.**
+
+(Code used from this post: https://stackoverflow.com/questions/9946630/colour-points-in-a-plot-differently-depending-on-a-vector-of-values)
+
+It looks like the values closer to blue are more densely populated and the red values are more sparsely populated.
+
+```{r}
+data = data.frame(x=pca_model$x[,1],
+           y=pca_model$x[,2],
+           pop=USArrests$UrbanPop,
+           z=pca_model$x[,0]) 
+
+sorted = data[order(data$pop),]
+rbPal <- colorRampPalette(c('red','blue'))
+sorted$color <- rbPal(10)[as.numeric(cut(data$pop,breaks = 10))]
+
+
+plot(sorted$x,sorted$y,xlab='PC1',ylab='PC2')
+text(sorted$x,sorted$y,row.names(data),col=sorted$col)
+```
+
+**(k) Create a scatter plot based on the 1st and 3rd PCs. Comment on the difference between this plot and the previous one**
+
+The first thing I notice is that the data is a little more squished around 0 on the y-axis. I think this indicates that more of the variation is explained by PC1 than PC3 (and comparing above, PC2). This is also confirmed by the scree plot - while the third PC offers some explanation of variation, it is lower than 1 & 2.
+
+```{r}
+data = data.frame(x=pca_model$x[,1],
+           y=pca_model$x[,3],
+           z=pca_model$x[,0])
+plot(data$x,data$y,xlab="PC1 ", ylab="PC3")
+text(data$x,data$y,row.names(data))
+```

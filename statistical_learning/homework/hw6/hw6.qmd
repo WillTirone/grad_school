@@ -1,0 +1,330 @@
+---
+title: "STA 521 HW6"
+author: "William Tirone"
+format: pdf
+editor: visual
+---
+
+# The Honor Code:
+
+::: callout-important
+\(a\) Please state the names of people who you worked with for this homework. You can also provide your comments about the homework here.
+
+Eli Gnesin, Natalie Smith, Alonso Guererro
+
+\(b\) Please type/write the following sentences yourself and sign at the end. We want to make it extra clear that nobody cheats even unintentionally.
+
+*I hereby state that all of my solutions were entirely in my words and were written by me. I have not looked at another student's solutions and I have fairly credited all external sources in this write up.*
+:::
+
+# 1 True or False
+
+1.  ::: {.callout-note appearance="minimal"}
+    FALSE, it is built on a random set of *m* predictors.
+    :::
+
+2.  ::: {.callout-note appearance="minimal"}
+    FALSE, the trees in boosting are grown sequentially.
+    :::
+
+3.  ::: {.callout-note appearance="minimal"}
+    FALSE, the hyperparameters are the number of trees, the number of features/covariates, and the type of tree.
+    :::
+
+4.  ::: {.callout-note appearance="minimal"}
+    FALSE, they can handle discrete or continuous-valued covariates.
+    :::
+
+5.  ::: {.callout-note appearance="minimal"}
+    FALSE, the forest makes the model less interpretable since it's a combination of the individual trees.
+    :::
+
+6.  ::: {.callout-note appearance="minimal"}
+    TRUE, a single tree could potentially overfit and learning slowly can help avoid this (ISL p. 346).
+    :::
+
+7.  ::: {.callout-note appearance="minimal" icon="false"}
+    TRUE, since random forest performs bootstrapping it is less susceptible to noise in the data. Check lecture 23 p. 21 / ESL 10.6.
+    :::
+
+8.  ::: {.callout-note appearance="minimal"}
+    FALSE, a deep tree can overfit and lead to higher variance.
+    :::
+
+9.  ::: {.callout-note appearance="minimal"}
+    FALSE, in BART trees are grown successively on the original data (lecture 23 slide 29).
+    :::
+
+10. ::: {.callout-note appearance="minimal" icon="false"}
+    FALSE, AdaBoost is iterative.
+    :::
+
+11. ::: {.callout-note appearance="minimal" icon="false"}
+    TRUE, deeper trees have higher variance and a higher chance to overfit in general.
+    :::
+
+12. ::: {.callout-note appearance="minimal" icon="false"}
+    FALSE, it can overfit if you add too many trees.
+    :::
+
+# 2)
+
+handwritten
+
+# 3)
+
+handwritten
+
+# 4) (8.4.9)
+
+```{r include=FALSE}
+# set up 
+suppressPackageStartupMessages({
+library(ISLR2)
+library(tree)
+library(tidyverse)
+library(gbm)
+library(glmnet)
+library(randomForest)
+})
+data(OJ)
+```
+
+## a)
+
+```{r}
+set.seed(123)
+OJ.train = sample_n(OJ,800)
+OJ.test = OJ[-as.integer(rownames(OJ.train)), ]
+```
+
+## b)
+
+Training Error Rate: 0.165.
+
+Terminal Nodes: 8
+
+```{r}
+t1 = tree(Purchase ~ ., data=OJ.train)
+summary(t1)
+```
+
+## c)
+
+The terminal node below indicates the split criteria, number of observations, deviance, y label, and the proportion of observations that that either MM or the other labels in the node.
+
+     9) LoyalCH > 0.0356415 114  108.90 MM ( 0.18421 0.81579 )
+
+```{r}
+t1
+```
+
+## d)
+
+Interpretation: starting from the top, we can follow the edges to the terminal nodes to find the label for the training observations. For example, LoyalCH \< 0.0356415 predicts a label of *MM* and LoyalCH \> 0.5036, PriceDiff \> -0.39, and LoyalCH \> 0.705326 predicts a label of *CH*.
+
+```{r}
+plot(t1)
+text(t1)
+```
+
+## e)
+
+The test error rate for t1 is 0.1851
+
+```{r}
+t1.pred = predict(t1, OJ.test, type='class')
+table(t1.pred, OJ.test$Purchase)
+
+# 1 minus correct classification 
+1 - (150 + 70)/270
+```
+
+## f)
+
+A tree with size 5 minimizes the misclassification error at 138.
+
+```{r}
+cv.t1 = cv.tree(t1, FUN = prune.misclass)
+cv.t1
+```
+
+## g)
+
+```{r}
+x = cv.t1$size
+y = cv.t1$dev
+
+plot(x,y,type='l',
+     xlab='tree size', 
+     ylab = 'cross validation misclassification',
+     main='Tree Cross Validation on OJ Train Data Set')
+```
+
+## h)
+
+A tree with size 5 minimizes the misclassification error at 138.
+
+## i)
+
+Creating a tree with 5 nodes, the optimal number of nodes:
+
+```{r}
+prune.t1 = prune.misclass(t1, best = 5)
+plot(prune.t1)
+text(prune.t1)
+```
+
+## j)
+
+The pruned tree has a training misclassification error rate of 0.165, which is the same as the unpruned version in this case.
+
+```{r}
+summary(prune.t1)
+```
+
+## k)
+
+Since the pruned tree had the same training error rate, it is not surprising that it has the same error rate at 0.1851852.
+
+```{r}
+t1.prune.pred = predict(prune.t1, OJ.test, type='class')
+table(t1.prune.pred, OJ.test$Purchase)
+
+1 - (150 + 70) / 270
+```
+
+# 5) (8.4.10)
+
+## a)
+
+```{r}
+Hitters = Hitters |> 
+  filter(!is.na(Hitters$Salary)) |>
+  mutate(log_salary = log(Salary))
+```
+
+## b)
+
+```{r}
+hit.train = Hitters[0:200,-19]
+hit.test = Hitters[200 : dim(Hitters)[1] - 200,-19]
+```
+
+## c)
+
+```{r}
+set.seed(123)
+
+shrink = seq(0,.2,0.01)
+
+train.mse = c() 
+
+for (i in shrink) {
+  
+  boost.hit = gbm(log_salary  ~ ., 
+                data=hit.train,
+                distribution = "gaussian",
+                n.trees = 1000,
+                shrinkage = i)
+  
+  y.hat = predict(boost.hit)
+  mse = mean((y.hat - hit.train$log_salary)^2)
+  train.mse = c(train.mse,mse)
+}
+
+plot(shrink, train.mse,
+     xlab = "shrinkage parameter",
+     main = "Train MSE for a Variety of Lambda",
+     type='l')
+```
+
+## d)
+
+```{r}
+test.mse = c() 
+
+for (i in shrink) {
+  
+  boost.hit = gbm(log_salary  ~ ., 
+                data=hit.train,
+                distribution = "gaussian",
+                n.trees = 1000,
+                shrinkage = i)
+  
+  y.hat = predict(boost.hit,hit.test)
+  mse = mean((y.hat - hit.test$log_salary)^2)
+  test.mse = c(test.mse,mse)
+}
+
+plot(shrink, test.mse,
+     xlab = "shrinkage parameter",
+     main = "Test MSE for a Variety of Lambda",
+     type='l')
+```
+
+## e)
+
+Using standard linear regression, we get an MSE of 0.3150123 which exceeds the test MSE of almost all choices of $\lambda$ in the boosting example from part d.
+
+With ridge regression, using $\lambda = .0024$ results in an MSE of 0.4062, which is still higher than linear regression and much higher than the boosting results.
+
+```{r}
+# let's try OLS 
+
+lm.hit = lm(log_salary  ~ ., 
+            data=hit.train)
+
+lm.hit.pred = predict(lm.hit,hit.test)
+lm.hit.mse = mean((lm.hit.pred - hit.test$log_salary)^2)
+
+lm.hit.mse
+```
+
+```{r}
+# trying ridge 
+ridge.hit = glmnet(data.matrix(hit.train[,-20]),
+                   hit.train$log_salary)
+
+cv.ridge = cv.glmnet(data.matrix(hit.train[,-20]),
+                     hit.train$log_salary)
+
+min.lambda = cv.ridge$lambda.min
+print(min.lambda)
+plot(cv.ridge)
+```
+
+```{r}
+cv.ridge
+```
+
+## f)
+
+With $\lambda = 1$, CRuns and Assists have a high amount of relative influence, and the rest have less than 8 relative influence.
+
+```{r}
+# fitting a boosted model with lambda = 1 
+boost.hit = gbm(log_salary  ~ ., 
+              data=hit.train,
+              distribution = "gaussian",
+              n.trees = 1000,
+              shrinkage = 1)
+
+summary(boost.hit)
+```
+
+## g)
+
+The test MSE is 0.2096 with the bagging approach, which is not as good as boosting but better than linear and ridge regression.
+
+```{r}
+bag.hit = randomForest(log_salary ~ ., data = hit.train,
+                       mtry = 19)
+y.hat.bag = predict(bag.hit, hit.test)
+mse = mean((y.hat.bag - hit.test$log_salary)^2)
+mse
+```
+
+## References: 
+
+https://www.cs.toronto.edu/\~mbrubake/teaching/C11/Handouts/AdaBoost.pdf
